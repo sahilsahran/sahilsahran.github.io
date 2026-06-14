@@ -141,7 +141,7 @@ Card background: `background: linear-gradient(160deg, #2E353B 0%, #262C31 100%)`
 
 - **Name row:** "SAHIL SAHRAN" in Clash Grotesk, `font-size: 10px`, `letter-spacing: 0.2em`, `font-weight: 600`, `color: rgba(196, 238, 240, 0.7)`, `text-transform: uppercase`. Right side: a simple monogram badge — a `24px × 24px` circle with `border: 1px solid rgba(196, 238, 240, 0.2)`, containing "SS" in `6px` Clash Grotesk.
 
-- **Photo:** Place the user's image at `src/assets/photo.png`. Use an `<img>` tag with `object-fit: cover; object-position: top center; width: 100%; height: 100%`. Wrap it in a div that takes up ~58% of the card's height. Over the image, apply a color tint overlay div with `background: rgba(164, 198, 211, 0.12); mix-blend-mode: color; position: absolute; inset: 0`. Also apply a bottom gradient fade: `background: linear-gradient(to bottom, transparent 60%, #262C31 100%)` to blend the photo into the card background smoothly.
+- **Photo:** Place the user's image at `img5969.png`. Use an `<img>` tag with `object-fit: cover; object-position: top center; width: 100%; height: 100%`. Wrap it in a div that takes up ~58% of the card's height. Over the image, apply a color tint overlay div with `background: rgba(164, 198, 211, 0.12); mix-blend-mode: color; position: absolute; inset: 0`. Also apply a bottom gradient fade: `background: linear-gradient(to bottom, transparent 60%, #262C31 100%)` to blend the photo into the card background smoothly.
 
   **Fallback:** If the image fails to load or doesn't exist yet, show the card without the image — just show the initials "SS" in large text centered in that area, styled with `color: rgba(196, 238, 240, 0.15)` and `font-size: 80px; font-weight: 800`.
 
