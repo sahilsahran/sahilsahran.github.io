@@ -14,33 +14,61 @@ function App() {
   const [cardRect, setCardRect] = useState<DOMRect | null>(null);
   const [animState, setAnimState] = useState<AnimState>('hidden');
   const [nameTransform, setNameTransform] = useState({ x: 0, y: 0 });
+  const [centerOffsets, setCenterOffsets] = useState([0, 0, 0]);
+
+  // Initial capture
+  useEffect(() => {
+    if (cardWrapperRef.current && !cardRect) {
+      setCardRect(cardWrapperRef.current.getBoundingClientRect());
+    }
+  }, []);
 
   // Dynamically calculate exact center distance for the Name text
   useEffect(() => {
     const updateNameCenter = () => {
-      if (nameRef.current) {
-        const currentTransform = nameRef.current.style.transform;
-        const currentTransition = nameRef.current.style.transition;
-        nameRef.current.style.transform = 'none';
-        nameRef.current.style.transition = 'none';
-        
-        const rect = nameRef.current.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        
-        setNameTransform({
-          x: window.innerWidth / 2 - centerX,
-          y: window.innerHeight / 2 - centerY
-        });
-        
-        // Force reflow
-        void nameRef.current.offsetHeight;
-        
-        nameRef.current.style.transform = currentTransform;
-        nameRef.current.style.transition = currentTransition;
-      }
+      if (!nameRef.current) return;
+
+      const currentTransform = nameRef.current.style.transform;
+      const currentTransition = nameRef.current.style.transition;
+      nameRef.current.style.transform = 'none';
+      nameRef.current.style.transition = 'none';
+      
+      // Force reflow
+      void nameRef.current.offsetHeight;
+
+      const rect = nameRef.current.getBoundingClientRect();
+      
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const viewportCenterX = window.innerWidth / 2;
+      const viewportCenterY = window.innerHeight / 2;
+      
+      setNameTransform({
+        x: viewportCenterX - centerX,
+        y: viewportCenterY - centerY
+      });
+
+      // Calculate the offset required to move each right-aligned text child to the exact center of the container
+      const children = Array.from(nameRef.current.children) as HTMLElement[];
+      const isMobile = window.innerWidth < 640;
+      const maxWidth = rect.width;
+
+      const offsets = children.map(child => {
+        // On mobile, the container uses items-center, so they are already centered! No offset needed.
+        if (isMobile) return 0;
+        const childWidth = child.getBoundingClientRect().width;
+        return (maxWidth - childWidth) / 2;
+      });
+      
+      setCenterOffsets(offsets);
+
+      nameRef.current.style.transform = currentTransform;
+      nameRef.current.style.transition = currentTransition;
     };
     
+    // Ensure fonts are loaded before measuring text widths
+    document.fonts.ready.then(updateNameCenter);
     updateNameCenter();
     window.addEventListener('resize', updateNameCenter);
     return () => window.removeEventListener('resize', updateNameCenter);
@@ -112,7 +140,7 @@ function App() {
     let bgOpacity = 0;
     let transitionDuration = '800ms';
     let easing = (animState === 'flipping_out' || animState === 'hidden') 
-      ? 'cubic-bezier(0.5, 0, 0.75, 0)' 
+      ? 'cubic-bezier(0.5, 0, 0.2, 1)' 
       : 'cubic-bezier(0.25, 1, 0.5, 1)';
 
     switch (animState) {
@@ -151,7 +179,7 @@ function App() {
     let transitionDuration = '800ms';
     // Preserve ease-in during hidden state so the CSS transition property doesn't change exactly as the animation finishes
     let easing = (animState === 'flipping_out' || animState === 'hidden') 
-      ? 'cubic-bezier(0.5, 0, 0.75, 0)' 
+      ? 'cubic-bezier(0.5, 0, 0.2, 1)' 
       : 'cubic-bezier(0.25, 1, 0.5, 1)';
     let filter = 'brightness(1)';
 
@@ -216,33 +244,17 @@ function App() {
             {/* Left Col - Name */}
             <div 
               ref={nameRef}
-              className="flex flex-col items-start z-20 will-change-transform"
+              className="flex flex-col items-center sm:items-end z-20 will-change-transform"
               style={{
-                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.75, 0)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`,
+                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`,
                 transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) 
                   ? `translate(${nameTransform.x}px, ${nameTransform.y}px)` 
                   : 'translate(0px, 0px)'
               }}
             >
-              <style>{`
-                @media (min-width: 640px) {
-                  .responsive-align {
-                    --align-left: 100%;
-                    --align-x: -100%;
-                  }
-                }
-                @media (max-width: 639px) {
-                  .responsive-align {
-                    --align-left: 50%;
-                    --align-x: -50%;
-                  }
-                }
-              `}</style>
-              
-              <div className="relative w-max responsive-align will-change-transform" style={{
-                left: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? '50%' : 'var(--align-left, 100%)',
-                transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? 'translateX(-50%)' : 'translateX(var(--align-x, -100%))',
-                transition: `all 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.75, 0)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`
+              <div className="relative w-max will-change-transform" style={{
+                transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? `translateX(-${centerOffsets[0] || 0}px)` : 'translateX(0px)',
+                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`
               }}>
                 <h1
                   className="font-sans font-[800] uppercase text-[#D2DCE5] leading-[0.92] tracking-[-0.02em] transition-all duration-250 ease-out will-change-transform cursor-default"
@@ -278,10 +290,9 @@ function App() {
                 </h1>
               </div>
 
-              <div className="relative w-max responsive-align will-change-transform" style={{
-                left: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? '50%' : 'var(--align-left, 100%)',
-                transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? 'translateX(-50%)' : 'translateX(var(--align-x, -100%))',
-                transition: `all 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.75, 0)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`
+              <div className="relative w-max will-change-transform" style={{
+                transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? `translateX(-${centerOffsets[1] || 0}px)` : 'translateX(0px)',
+                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`
               }}>
                 <h1
                   className="font-sans font-[800] uppercase text-[#D2DCE5] leading-[0.92] tracking-[-0.02em] transition-all duration-250 ease-out will-change-transform cursor-default"
@@ -317,10 +328,9 @@ function App() {
                 </h1>
               </div>
 
-              <div className="relative w-max responsive-align will-change-transform mt-4" style={{
-                left: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? '50%' : 'var(--align-left, 100%)',
-                transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? 'translateX(-50%)' : 'translateX(var(--align-x, -100%))',
-                transition: `all 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.75, 0)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`
+              <div className="relative w-max will-change-transform mt-4" style={{
+                transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? `translateX(-${centerOffsets[2] || 0}px)` : 'translateX(0px)',
+                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`
               }}>
                 <p className="font-sans font-normal text-[clamp(1rem,1.5vw,1.25rem)] text-[rgba(164,198,211,0.7)] tracking-[0.05em]">
                   Full-stack developer & designer

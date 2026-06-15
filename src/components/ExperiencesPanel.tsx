@@ -63,12 +63,16 @@ export function ExperiencesPanel({ onClose, cardRect, animState }: ExperiencesPa
 
     const baseStyle: React.CSSProperties = {
       position: "fixed",
-      top: 0,
-      left: 0,
+      top: "50%",
+      left: "50%",
       zIndex: 50,
       transformStyle: "preserve-3d",
       pointerEvents: animState === "hidden" ? "none" : "auto",
     };
+
+    // Calculate the distance from the screen center to the card's original center
+    const hiddenX = rectLeft + rectWidth / 2 - cw / 2;
+    const hiddenY = rectTop + rectHeight / 2 - ch / 2;
 
     switch (animState) {
       case "hidden":
@@ -76,7 +80,7 @@ export function ExperiencesPanel({ onClose, cardRect, animState }: ExperiencesPa
           ...baseStyle,
           width: rectWidth,
           height: rectHeight,
-          transform: `translate3d(${rectLeft}px, ${rectTop}px, 0) rotateY(0deg) scale(1)`,
+          transform: `translate3d(${hiddenX}px, ${hiddenY}px, 0) translate(-50%, -50%) rotateY(0deg) scale(1)`,
           borderRadius: "16px",
           transition: "none",
           opacity: 0,
@@ -87,7 +91,7 @@ export function ExperiencesPanel({ onClose, cardRect, animState }: ExperiencesPa
           ...baseStyle,
           width: rectWidth,
           height: rectHeight,
-          transform: `translate3d(${cw/2 - rectWidth/2}px, ${ch/2 - rectHeight/2}px, 0) rotateY(180deg) scale(1.2)`,
+          transform: `translate3d(0px, 0px, 0) translate(-50%, -50%) rotateY(180deg) scale(1.2)`,
           borderRadius: "16px",
           transition: "all 800ms cubic-bezier(0.25, 1, 0.5, 1), opacity 0ms",
           opacity: 1,
@@ -97,9 +101,9 @@ export function ExperiencesPanel({ onClose, cardRect, animState }: ExperiencesPa
       case "open":
         return {
           ...baseStyle,
-          width: "100vw",
-          height: "100vh",
-          transform: `translate3d(0px, 0px, 0px) rotateY(180deg) scale(1)`,
+          width: "100%",
+          height: "100%",
+          transform: `translate3d(0px, 0px, 0) translate(-50%, -50%) rotateY(180deg) scale(1)`,
           borderRadius: "0px",
           transition: "all 400ms cubic-bezier(0.76, 0, 0.24, 1), opacity 0ms",
           opacity: 1,
@@ -110,7 +114,7 @@ export function ExperiencesPanel({ onClose, cardRect, animState }: ExperiencesPa
           ...baseStyle,
           width: rectWidth,
           height: rectHeight,
-          transform: `translate3d(${cw/2 - rectWidth/2}px, ${ch/2 - rectHeight/2}px, 0) rotateY(180deg) scale(1.2)`,
+          transform: `translate3d(0px, 0px, 0) translate(-50%, -50%) rotateY(180deg) scale(1.2)`,
           borderRadius: "16px",
           transition: "all 400ms cubic-bezier(0.76, 0, 0.24, 1), opacity 0ms",
           opacity: 1,
@@ -121,9 +125,9 @@ export function ExperiencesPanel({ onClose, cardRect, animState }: ExperiencesPa
           ...baseStyle,
           width: rectWidth,
           height: rectHeight,
-          transform: `translate3d(${rectLeft}px, ${rectTop}px, 0) rotateY(0deg) scale(1)`,
+          transform: `translate3d(${hiddenX}px, ${hiddenY}px, 0) translate(-50%, -50%) rotateY(0deg) scale(1)`,
           borderRadius: "16px",
-          transition: "all 800ms cubic-bezier(0.5, 0, 0.75, 0), opacity 0ms",
+          transition: "all 800ms cubic-bezier(0.5, 0, 0.2, 1), opacity 0ms",
           opacity: 1,
           boxShadow: "0 0 0 rgba(0,0,0,0)",
         };
