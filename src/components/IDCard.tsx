@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import photoPng from "@/assets/photo.png";
+import photoPng from "@/assets/photo.webp";
 
 interface IDCardProps {
   photoSrc?: string;
@@ -11,6 +11,8 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
   const frontFaceRef = useRef<HTMLDivElement>(null);
 
   const [hasError, setHasError] = useState(false);
+  // Track whether mouse is inside so we know when to run the lerp loop
+  const isHoveringRef = useRef(false);
 
   useEffect(() => {
     if (!interactive) return;
@@ -23,76 +25,88 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
     let currentRotY = 0;
     let targetRotX = 0;
     let targetRotY = 0;
-    let animationFrameId: number;
+    let animationFrameId: number | null = null;
 
-    const lerp = (start: number, end: number, amt: number) => {
-      return (1 - amt) * start + amt * end;
-    };
+    const lerp = (start: number, end: number, amt: number) =>
+      (1 - amt) * start + amt * end;
 
-    const updateRotation = () => {
+    // Restore CSS animation once the lerp has settled.
+    const patchedTick = () => {
       currentRotX = lerp(currentRotX, targetRotX, 0.07);
       currentRotY = lerp(currentRotY, targetRotY, 0.07);
 
       card.style.transform = `rotateX(${currentRotX}deg) rotateY(${currentRotY}deg)`;
-      
-      animationFrameId = requestAnimationFrame(updateRotation);
+
+      const settled =
+        !isHoveringRef.current &&
+        Math.abs(currentRotX) < 0.05 &&
+        Math.abs(currentRotY) < 0.05;
+
+      if (settled) {
+        card.style.transform = '';
+        animationFrameId = null;
+      } else {
+        animationFrameId = requestAnimationFrame(patchedTick);
+      }
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const startPatchedLoop = () => {
+      if (animationFrameId === null) {
+        animationFrameId = requestAnimationFrame(patchedTick);
+      }
+    };
+
+    const handleMouseMovePatched = (e: MouseEvent) => {
+      if (!isHoveringRef.current) {
+        isHoveringRef.current = true;
+        startPatchedLoop();
+      }
+
       const rect = card.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
 
-      const mouseX = e.clientX;
-      const mouseY = e.clientY;
+      const percentX = (e.clientX - centerX) / (rect.width / 2);
+      const percentY = (e.clientY - centerY) / (rect.height / 2);
 
-      // Calculate target rotation clamped
-      const percentX = (mouseX - centerX) / (rect.width / 2);
-      const percentY = (mouseY - centerY) / (rect.height / 2);
-      
       targetRotY = Math.max(Math.min(percentX * 10, 10), -10);
-      targetRotX = Math.max(Math.min(percentY * -14, 14), -14); // Invert Y for correct tilt
+      targetRotX = Math.max(Math.min(percentY * -14, 14), -14);
 
-      // Update sheen position
-      // Position is relative to frontFace top-left
       const frontRect = frontFace.getBoundingClientRect();
-      const frontX = e.clientX - frontRect.left;
-      const frontY = e.clientY - frontRect.top;
-      frontFace.style.setProperty('--mouse-x', `${frontX}px`);
-      frontFace.style.setProperty('--mouse-y', `${frontY}px`);
+      frontFace.style.setProperty('--mouse-x', `${e.clientX - frontRect.left}px`);
+      frontFace.style.setProperty('--mouse-y', `${e.clientY - frontRect.top}px`);
     };
 
-    const handleMouseLeave = () => {
+    const handleMouseLeavePatched = () => {
+      isHoveringRef.current = false;
       targetRotX = 0;
       targetRotY = 0;
-      frontFace.style.setProperty('--mouse-x', `50%`);
-      frontFace.style.setProperty('--mouse-y', `50%`);
+      frontFace.style.setProperty('--mouse-x', '50%');
+      frontFace.style.setProperty('--mouse-y', '50%');
+      startPatchedLoop();
     };
 
-    // We can track mouse movement over the container or the card itself.
-    // Tracking over the card's parent container makes the interaction broader.
     const container = card.parentElement;
     if (container) {
-      container.addEventListener("mousemove", handleMouseMove);
-      container.addEventListener("mouseleave", handleMouseLeave);
+      container.addEventListener('mousemove', handleMouseMovePatched);
+      container.addEventListener('mouseleave', handleMouseLeavePatched);
     }
-
-    animationFrameId = requestAnimationFrame(updateRotation);
+    // Loop only starts on mouse interaction, not on mount
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
       if (container) {
-        container.removeEventListener("mousemove", handleMouseMove);
-        container.removeEventListener("mouseleave", handleMouseLeave);
+        container.removeEventListener('mousemove', handleMouseMovePatched);
+        container.removeEventListener('mouseleave', handleMouseLeavePatched);
       }
     };
-  }, []);
+  }, [interactive]);
 
   return (
     <div style={{ perspective: "1200px" }} className="w-[240px] h-[336px] sm:w-[340px] sm:h-[476px] mx-auto group">
       <div
         ref={cardRef}
-        className="w-full h-full relative preserve-3d will-change-transform rounded-[16px]"
+        className="w-full h-full relative preserve-3d rounded-[16px]"
         style={{
           boxShadow: `
             0 30px 60px -15px rgba(0, 0, 0, 0.7),
@@ -132,11 +146,11 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
             }}
           />
 
-          {/* Grain Texture */}
+          {/* Static Shadow Overlay */}
           <div
-            className="absolute inset-0 z-[9] pointer-events-none opacity-[0.04] mix-blend-overlay"
+            className="absolute inset-0 pointer-events-none z-[1] rounded-[16px]"
             style={{
-              backgroundImage: "url(\"data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")"
+              background: 'radial-gradient(ellipse at 50% 150%, rgba(15, 20, 25, 0.8) 0%, rgba(15, 20, 25, 0.3) 40%, transparent 70%)',
             }}
           />
 
@@ -158,7 +172,7 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
               <img
                 src={photoSrc}
                 alt="Sahil Sahran"
-                className="w-full h-full object-cover object-[top_center] grayscale"
+                className="w-full h-full object-cover object-[top_center]"
                 onError={() => setHasError(true)}
               />
             ) : (

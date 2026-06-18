@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
-import { BGPattern } from "@/components/ui/bg-pattern";
+import { ParallaxGrid } from "@/components/ParallaxGrid";
 import { IDCard } from "@/components/IDCard";
 import { ExperiencesPanel } from "@/components/ExperiencesPanel";
+import { FlipButton } from "@/components/ui/FlipButton";
+import { PDFViewerPanel } from "@/components/PDFViewerPanel";
 
 export type AnimState = 'hidden' | 'flipping_in' | 'expanding' | 'open' | 'collapsing' | 'flipping_out';
+export type PdfAnimState = 'hidden' | 'flipping_in' | 'expanding' | 'open' | 'collapsing' | 'flipping_out';
 
 function App() {
   const [section, setSection] = useState<'landing' | 'experiences'>('landing');
@@ -15,6 +18,14 @@ function App() {
   const [animState, setAnimState] = useState<AnimState>('hidden');
   const [nameTransform, setNameTransform] = useState({ x: 0, y: 0 });
   const [centerOffsets, setCenterOffsets] = useState([0, 0, 0]);
+
+  // PDF Viewer state
+  const [pdfAnimState, setPdfAnimState] = useState<PdfAnimState>('hidden');
+  const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const [pdfType, setPdfType] = useState<'resume' | 'transcript'>('resume');
+  const [pdfStartRect, setPdfStartRect] = useState<DOMRect | null>(null);
+  const resumeBtnRef = useRef<HTMLButtonElement>(null);
+  const transcriptBtnRef = useRef<HTMLButtonElement>(null);
 
   // Initial capture
   useEffect(() => {
@@ -28,18 +39,28 @@ function App() {
     const updateNameCenter = () => {
       if (!nameRef.current) return;
 
-      const currentTransform = nameRef.current.style.transform;
-      const currentTransition = nameRef.current.style.transition;
-      nameRef.current.style.transform = 'none';
-      nameRef.current.style.transition = 'none';
-      
-      // Force reflow
-      void nameRef.current.offsetHeight;
+      const el = nameRef.current;
 
-      const rect = nameRef.current.getBoundingClientRect();
+      // Read bounding rect (includes current CSS transform).
+      // Then read the transform via getComputedStyle (no reflow — transform
+      // is a composited property) and mathematically undo it to get the
+      // untransformed natural position.
+      const rect = el.getBoundingClientRect();
+
+      const cs = getComputedStyle(el);
+      let tx = 0, ty = 0;
+      if (cs.transform && cs.transform !== 'none') {
+        const m = cs.transform.match(/^matrix(?:3d)?\((.+)\)$/);
+        if (m) {
+          const vals = m[1].split(/,\s*/).map(Number);
+          const i = vals.length === 16 ? [12, 13] : [4, 5];
+          tx = vals[i[0]] || 0;
+          ty = vals[i[1]] || 0;
+        }
+      }
       
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
+      const centerX = rect.left + rect.width / 2 - tx;
+      const centerY = rect.top + rect.height / 2 - ty;
       
       const viewportCenterX = window.innerWidth / 2;
       const viewportCenterY = window.innerHeight / 2;
@@ -49,22 +70,20 @@ function App() {
         y: viewportCenterY - centerY
       });
 
-      // Calculate the offset required to move each right-aligned text child to the exact center of the container
-      const children = Array.from(nameRef.current.children) as HTMLElement[];
+      // Calculate the offset required to move each right-aligned text child
+      // to the exact center of the container.  Widths are unaffected by
+      // translate transforms, so no compensation needed.
+      const children = Array.from(el.children) as HTMLElement[];
       const isMobile = window.innerWidth < 640;
       const maxWidth = rect.width;
 
       const offsets = children.map(child => {
-        // On mobile, the container uses items-center, so they are already centered! No offset needed.
         if (isMobile) return 0;
         const childWidth = child.getBoundingClientRect().width;
         return (maxWidth - childWidth) / 2;
       });
       
       setCenterOffsets(offsets);
-
-      nameRef.current.style.transform = currentTransform;
-      nameRef.current.style.transition = currentTransition;
     };
     
     // Ensure fonts are loaded before measuring text widths
@@ -111,6 +130,47 @@ function App() {
     };
   }, [section, animState]);
 
+  // PDF Animation Orchestration
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    
+    if (isPdfOpen) {
+      if (pdfAnimState === 'hidden' || pdfAnimState === 'flipping_out' || pdfAnimState === 'collapsing') {
+        setPdfAnimState('flipping_in');
+      } else if (pdfAnimState === 'flipping_in') {
+        t = setTimeout(() => setPdfAnimState('expanding'), 800);
+      } else if (pdfAnimState === 'expanding') {
+        t = setTimeout(() => setPdfAnimState('open'), 600); // 400ms for card, 600ms for PDF
+      }
+    } else {
+      if (pdfAnimState === 'open' || pdfAnimState === 'expanding') {
+        setPdfAnimState('collapsing');
+      } else if (pdfAnimState === 'collapsing') {
+        t = setTimeout(() => setPdfAnimState('flipping_out'), 600);
+      } else if (pdfAnimState === 'flipping_out') {
+        t = setTimeout(() => setPdfAnimState('hidden'), 800);
+      } else if (pdfAnimState === 'flipping_in') {
+        setPdfAnimState('flipping_out');
+      }
+    }
+
+    return () => clearTimeout(t);
+  }, [isPdfOpen, pdfAnimState]);
+
+  const openPdf = (type: 'resume' | 'transcript') => {
+    if (transitioning || section === 'experiences' || isPdfOpen) return;
+    const ref = type === 'resume' ? resumeBtnRef : transcriptBtnRef;
+    if (ref.current) {
+      setPdfStartRect(ref.current.getBoundingClientRect());
+    }
+    setPdfType(type);
+    setIsPdfOpen(true);
+  };
+
+  const closePdf = () => {
+    setIsPdfOpen(false);
+  };
+
   function goToExperiences() {
     if (transitioning || section === 'experiences') return;
     if (cardWrapperRef.current) {
@@ -142,6 +202,36 @@ function App() {
     let easing = (animState === 'flipping_out' || animState === 'hidden') 
       ? 'cubic-bezier(0.5, 0, 0.2, 1)' 
       : 'cubic-bezier(0.25, 1, 0.5, 1)';
+
+    if (pdfAnimState !== 'hidden') {
+      switch (pdfAnimState) {
+        case 'flipping_in':
+          bgOpacity = 0.3; // Subtle dimming
+          transitionDuration = '800ms';
+          easing = 'cubic-bezier(0.25, 1, 0.5, 1)';
+          break;
+        case 'expanding':
+        case 'open':
+          bgOpacity = 0.85; // Dramatic shadowing
+          transitionDuration = '600ms';
+          easing = 'cubic-bezier(0.76, 0, 0.24, 1)';
+          break;
+        case 'collapsing':
+          bgOpacity = 0.3;
+          transitionDuration = '600ms';
+          easing = 'cubic-bezier(0.76, 0, 0.24, 1)';
+          break;
+        case 'flipping_out':
+          bgOpacity = 0;
+          transitionDuration = '800ms';
+          easing = 'cubic-bezier(0.5, 0, 0.2, 1)';
+          break;
+      }
+      return {
+        backgroundColor: `rgba(0, 0, 0, ${bgOpacity})`,
+        transition: `background-color ${transitionDuration} ${easing}`,
+      };
+    }
 
     switch (animState) {
       case 'hidden':
@@ -183,6 +273,37 @@ function App() {
       : 'cubic-bezier(0.25, 1, 0.5, 1)';
     let filter = 'brightness(1)';
 
+    if (pdfAnimState !== 'hidden') {
+      switch (pdfAnimState) {
+        case 'flipping_in':
+        case 'collapsing':
+          scale = 0.8;
+          filter = 'brightness(0.7)';
+          transitionDuration = pdfAnimState === 'collapsing' ? '600ms' : '800ms';
+          easing = pdfAnimState === 'collapsing' ? 'cubic-bezier(0.76, 0, 0.24, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)';
+          break;
+        case 'expanding':
+        case 'open':
+          scale = 0.7;
+          filter = 'brightness(0.15)';
+          transitionDuration = '600ms';
+          easing = 'cubic-bezier(0.76, 0, 0.24, 1)';
+          break;
+        case 'flipping_out':
+          scale = 1;
+          filter = 'brightness(1)';
+          transitionDuration = '800ms';
+          easing = 'cubic-bezier(0.5, 0, 0.2, 1)';
+          break;
+      }
+      return {
+        transform: `scale(${scale})`,
+        filter,
+        transition: `transform ${transitionDuration} ${easing}, filter ${transitionDuration} ${easing}`,
+        transformOrigin: 'center center',
+      };
+    }
+
     switch (animState) {
       case 'hidden':
         scale = 1;
@@ -221,17 +342,33 @@ function App() {
     };
   };
 
+  const isLandingHidden = animState === 'expanding' || animState === 'open';
+
   return (
-    <div className="relative min-h-screen overflow-hidden" style={getRootStyle()}>
+    <div 
+      className={`relative min-h-screen overflow-hidden ${pdfAnimState !== 'hidden' ? 'animations-paused' : ''}`}
+      style={getRootStyle()}
+    >
       {/* LANDING SECTION */}
       <section
-        className="relative h-[100vh] w-full flex flex-col justify-center will-change-transform"
+        className="relative h-[100vh] w-full flex flex-col justify-center"
         style={getLandingStyle()}
         onWheel={handleLandingWheel}
       >
-        <BGPattern variant="grid" mask="fade-edges" size={40} fill="#1a2227" />
+        {/* WebGL parallax: fragment shader computes grid per-pixel — zero rasterization */}
+        <ParallaxGrid 
+          visible={!isLandingHidden} 
+          paused={pdfAnimState !== 'hidden'}
+        />
+        <div 
+          className="absolute inset-0 pointer-events-none z-[1]"
+          style={{ 
+            background: 'radial-gradient(ellipse at center, transparent 0%, #262c31 75%)',
+            display: isLandingHidden ? 'none' : undefined,
+          }}
+        />
         
-        <main className="relative z-10 w-full max-w-[1200px] mx-auto px-6 flex flex-col items-center">
+        <main className="relative z-10 w-full max-w-[1200px] mx-auto px-6 flex flex-col items-center" style={{ display: isLandingHidden ? 'none' : undefined }}>
           {/* Top layout: Card (Right) + Name (Left) */}
           <div className="flex flex-col sm:flex-row-reverse items-center justify-center gap-12 sm:gap-24 w-full">
             {/* Right Col - Card (First in DOM so it stacks on top for mobile) */}
@@ -244,93 +381,254 @@ function App() {
             {/* Left Col - Name */}
             <div 
               ref={nameRef}
-              className="flex flex-col items-center sm:items-end z-20 will-change-transform"
+              className="flex flex-col items-center sm:items-end z-20"
               style={{
                 transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`,
                 transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) 
                   ? `translate(${nameTransform.x}px, ${nameTransform.y}px)` 
-                  : 'translate(0px, 0px)'
+                  : `translate(0px, 0px)`,
+                willChange: ['flipping_in', 'flipping_out', 'expanding', 'collapsing'].includes(animState) ? 'transform' : 'auto',
               }}
             >
-              <div className="relative w-max will-change-transform" style={{
+              <div className="relative w-max" style={{
                 transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? `translateX(-${centerOffsets[0] || 0}px)` : 'translateX(0px)',
-                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`
+                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`,
+                perspective: '1200px'
               }}>
-                <h1
-                  className="font-sans font-[800] uppercase text-[#D2DCE5] leading-[0.92] tracking-[-0.02em] transition-all duration-250 ease-out will-change-transform cursor-default"
-                  style={{
-                    fontSize: "clamp(5rem, 9vw, 9rem)",
-                    textShadow: `
-                      0 2px 0 #4B6376,
-                      0 4px 0 rgba(75, 99, 118, 0.6),
-                      0 8px 16px rgba(0, 0, 0, 0.5),
-                      0 16px 32px rgba(0, 0, 0, 0.3)
-                    `,
+                <div 
+                  className="relative preserve-3d cursor-default group"
+                  style={{ 
+                    animation: 'float-bob 16s ease-in-out infinite',
+                    animationPlayState: animState === 'hidden' ? 'running' : 'paused',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-3px)';
-                    e.currentTarget.style.textShadow = `
-                      0 5px 0 #4B6376,
-                      0 8px 0 rgba(75, 99, 118, 0.5),
-                      0 12px 20px rgba(0, 0, 0, 0.6),
-                      0 24px 40px rgba(0, 0, 0, 0.3)
-                    `;
+                    e.currentTarget.style.animationPlayState = 'paused';
+                    const inner = e.currentTarget.querySelector('.flip-inner-sahil') as HTMLElement;
+                    if (inner) inner.style.transform = `rotateX(180deg)`;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.textShadow = `
-                      0 2px 0 #4B6376,
-                      0 4px 0 rgba(75, 99, 118, 0.6),
-                      0 8px 16px rgba(0, 0, 0, 0.5),
-                      0 16px 32px rgba(0, 0, 0, 0.3)
-                    `;
+                    if (animState === 'hidden') e.currentTarget.style.animationPlayState = 'running';
+                    const inner = e.currentTarget.querySelector('.flip-inner-sahil') as HTMLElement;
+                    if (inner) inner.style.transform = `rotateX(0deg)`;
                   }}
                 >
-                  SAHIL
-                </h1>
+                  <h1 
+                    className="absolute top-[20px] left-0 w-full h-full font-sans font-[800] uppercase text-transparent leading-[0.92] tracking-[-0.02em] pointer-events-none transition-opacity duration-500 group-hover:opacity-10"
+                    style={{ 
+                      fontSize: "clamp(5rem, 9vw, 9rem)",
+                      textShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                      transform: 'translateZ(-50px)',
+                    }}
+                  >
+                    SAHIL
+                  </h1>
+
+                  <div 
+                    className="flip-inner-sahil relative preserve-3d transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                    style={{ transformOrigin: 'center center' }}
+                  >
+                    <h1 
+                      className="font-sans font-[800] uppercase text-transparent leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                      style={{ fontSize: "clamp(5rem, 9vw, 9rem)" }}
+                    >
+                      SAHIL
+                    </h1>
+
+                    <h1 
+                      className="absolute inset-0 font-sans font-[800] uppercase text-[#D2DCE5] leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                      style={{ fontSize: "clamp(5rem, 9vw, 9rem)", transform: 'translateZ(0px)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                    >
+                      SAHIL
+                    </h1>
+
+                    {/* Back face — visible only when flipped */}
+                    <h1 
+                      className="absolute inset-0 font-sans font-[800] uppercase leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                      style={{
+                        fontSize: "clamp(5rem, 9vw, 9rem)",
+                        transform: 'rotateX(180deg) translateZ(0px)',
+                        color: '#A4C6D3',
+                        textShadow: '0 0 2px rgba(46,53,59,0.6), 0 0 8px rgba(46,53,59,0.3), 0 2px 4px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.1)',
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                      }}
+                    >
+                      SAHIL
+                    </h1>
+
+                    {[ -4, -20 ].map((z) => (
+                      <h1 
+                        key={z}
+                        className="absolute inset-0 font-sans font-[800] uppercase leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                        style={{
+                          fontSize: "clamp(5rem, 9vw, 9rem)",
+                          transform: `translateZ(${z}px)`,
+                          textShadow: '0 0 1px rgba(46,53,59,0.5), 0 2px 4px rgba(0,0,0,0.25)',
+                          color: z === -20 ? '#A4C6D3' : '#4B6376',
+                          backfaceVisibility: 'hidden',
+                          WebkitBackfaceVisibility: 'hidden',
+                        }}
+                      >
+                        SAHIL
+                      </h1>
+                    ))}
+                    <div className="extra-depth preserve-3d absolute inset-0">
+                      {[ -8, -12, -16 ].map((z) => (
+                        <h1 
+                          key={z}
+                          className="absolute inset-0 font-sans font-[800] uppercase leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                          style={{
+                            fontSize: "clamp(5rem, 9vw, 9rem)",
+                            transform: `translateZ(${z}px)`,
+                            color: '#4B6376',
+                            backfaceVisibility: 'hidden',
+                            WebkitBackfaceVisibility: 'hidden',
+                          }}
+                        >
+                          SAHIL
+                        </h1>
+                      ))}
+                    </div>
+                    {[4, 8, 12].map((z) => (
+                      <h1 
+                        key={`b${z}`}
+                        className="absolute inset-0 font-sans font-[800] uppercase leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                        style={{
+                          fontSize: "clamp(5rem, 9vw, 9rem)",
+                          transform: `rotateX(180deg) translateZ(-${z}px)`,
+                          color: z === 12 ? '#A4C6D3' : '#4B6376',
+                          backfaceVisibility: 'hidden',
+                          WebkitBackfaceVisibility: 'hidden',
+                        }}
+                      >
+                        SAHIL
+                      </h1>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <div className="relative w-max will-change-transform" style={{
+              <div className="relative w-max" style={{
                 transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? `translateX(-${centerOffsets[1] || 0}px)` : 'translateX(0px)',
-                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`
+                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`,
+                perspective: '1200px'
               }}>
-                <h1
-                  className="font-sans font-[800] uppercase text-[#D2DCE5] leading-[0.92] tracking-[-0.02em] transition-all duration-250 ease-out will-change-transform cursor-default"
-                  style={{
-                    fontSize: "clamp(5rem, 9vw, 9rem)",
-                    textShadow: `
-                      0 2px 0 #4B6376,
-                      0 4px 0 rgba(75, 99, 118, 0.6),
-                      0 8px 16px rgba(0, 0, 0, 0.5),
-                      0 16px 32px rgba(0, 0, 0, 0.3)
-                    `,
+                <div 
+                  className="relative preserve-3d cursor-default group"
+                  style={{ 
+                    animation: 'float-bob-reverse 13.5s ease-in-out infinite',
+                    animationPlayState: animState === 'hidden' ? 'running' : 'paused',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-3px)';
-                    e.currentTarget.style.textShadow = `
-                      0 5px 0 #4B6376,
-                      0 8px 0 rgba(75, 99, 118, 0.5),
-                      0 12px 20px rgba(0, 0, 0, 0.6),
-                      0 24px 40px rgba(0, 0, 0, 0.3)
-                    `;
+                    e.currentTarget.style.animationPlayState = 'paused';
+                    const inner = e.currentTarget.querySelector('.flip-inner-sahran') as HTMLElement;
+                    if (inner) inner.style.transform = `rotateX(-180deg)`;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.textShadow = `
-                      0 2px 0 #4B6376,
-                      0 4px 0 rgba(75, 99, 118, 0.6),
-                      0 8px 16px rgba(0, 0, 0, 0.5),
-                      0 16px 32px rgba(0, 0, 0, 0.3)
-                    `;
+                    if (animState === 'hidden') e.currentTarget.style.animationPlayState = 'running';
+                    const inner = e.currentTarget.querySelector('.flip-inner-sahran') as HTMLElement;
+                    if (inner) inner.style.transform = `rotateX(0deg)`;
                   }}
                 >
-                  SAHRAN
-                </h1>
+                  <h1 
+                    className="absolute top-[20px] left-0 w-full h-full font-sans font-[800] uppercase text-transparent leading-[0.92] tracking-[-0.02em] pointer-events-none transition-opacity duration-500 group-hover:opacity-10"
+                    style={{ 
+                      fontSize: "clamp(5rem, 9vw, 9rem)",
+                      textShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                      transform: 'translateZ(-50px)',
+                    }}
+                  >
+                    SAHRAN
+                  </h1>
+
+                  <div 
+                    className="flip-inner-sahran relative preserve-3d transition-transform duration-700 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                    style={{ transformOrigin: 'center center' }}
+                  >
+                    <h1 
+                      className="font-sans font-[800] uppercase text-transparent leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                      style={{ fontSize: "clamp(5rem, 9vw, 9rem)" }}
+                    >
+                      SAHRAN
+                    </h1>
+
+                    <h1 
+                      className="absolute inset-0 font-sans font-[800] uppercase text-[#D2DCE5] leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                      style={{ fontSize: "clamp(5rem, 9vw, 9rem)", transform: 'translateZ(0px)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                    >
+                      SAHRAN
+                    </h1>
+
+                    {/* Back face — visible only when flipped */}
+                    <h1 
+                      className="absolute inset-0 font-sans font-[800] uppercase leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                      style={{
+                        fontSize: "clamp(5rem, 9vw, 9rem)",
+                        transform: 'rotateX(180deg) translateZ(0px)',
+                        color: '#A4C6D3',
+                        textShadow: '0 0 2px rgba(46,53,59,0.6), 0 0 8px rgba(46,53,59,0.3), 0 2px 4px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.1)',
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                      }}
+                    >
+                      SAHRAN
+                    </h1>
+
+                    {[ -4, -20 ].map((z) => (
+                      <h1 
+                        key={z}
+                        className="absolute inset-0 font-sans font-[800] uppercase leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                        style={{
+                          fontSize: "clamp(5rem, 9vw, 9rem)",
+                          transform: `translateZ(${z}px)`,
+                          textShadow: '0 0 1px rgba(46,53,59,0.5), 0 2px 4px rgba(0,0,0,0.25)',
+                          color: z === -20 ? '#A4C6D3' : '#4B6376',
+                          backfaceVisibility: 'hidden',
+                          WebkitBackfaceVisibility: 'hidden',
+                        }}
+                      >
+                        SAHRAN
+                      </h1>
+                    ))}
+                    <div className="extra-depth preserve-3d absolute inset-0">
+                      {[ -8, -12, -16 ].map((z) => (
+                        <h1 
+                          key={z}
+                          className="absolute inset-0 font-sans font-[800] uppercase leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                          style={{
+                            fontSize: "clamp(5rem, 9vw, 9rem)",
+                            transform: `translateZ(${z}px)`,
+                            color: '#4B6376',
+                            backfaceVisibility: 'hidden',
+                            WebkitBackfaceVisibility: 'hidden',
+                          }}
+                        >
+                          SAHRAN
+                        </h1>
+                      ))}
+                    </div>
+                    {[4, 8, 12].map((z) => (
+                      <h1 
+                        key={`b${z}`}
+                        className="absolute inset-0 font-sans font-[800] uppercase leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                        style={{
+                          fontSize: "clamp(5rem, 9vw, 9rem)",
+                          transform: `rotateX(180deg) translateZ(-${z}px)`,
+                          color: z === 12 ? '#A4C6D3' : '#4B6376',
+                          backfaceVisibility: 'hidden',
+                          WebkitBackfaceVisibility: 'hidden',
+                        }}
+                      >
+                        SAHRAN
+                      </h1>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <div className="relative w-max will-change-transform mt-4" style={{
+              <div className="relative w-max mt-4" style={{
                 transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? `translateX(-${centerOffsets[2] || 0}px)` : 'translateX(0px)',
-                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`
+                transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`,
               }}>
                 <p className="font-sans font-normal text-[clamp(1rem,1.5vw,1.25rem)] text-[rgba(164,198,211,0.7)] tracking-[0.05em]">
                   Full-stack developer & designer
@@ -341,46 +639,33 @@ function App() {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center gap-[16px] mt-16 z-20">
-            <button
-              className="font-sans text-[14px] font-semibold tracking-[0.06em] px-[32px] py-[12px] rounded-[10px] transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:-translate-y-[2px] active:translate-y-[1px]"
+            <FlipButton
+              ref={resumeBtnRef}
+              wrapperClassName="w-auto h-auto"
+              className="btn-flip-primary"
               aria-label="View Resume"
-              style={{
-                background: "#D2DCE5",
-                color: "#262C31",
-                boxShadow: `
-                  0 0 0 1px rgba(0,0,0,0.08),
-                  0 2px 4px rgba(0,0,0,0.2),
-                  0 8px 16px -4px rgba(0,0,0,0.4),
-                  inset 0 1px 0 rgba(255,255,255,0.9),
-                  inset 0 -2px 4px rgba(0,0,0,0.08)
-                `,
-              }}
+              onClick={() => openPdf('resume')}
+              style={{ opacity: (pdfType === 'resume' && pdfAnimState !== 'hidden') ? 0 : 1, transition: 'opacity 0ms, transform 250ms ease-in-out' }}
             >
               Resume
-            </button>
-            <button
-              className="font-sans text-[14px] font-semibold tracking-[0.06em] px-[32px] py-[12px] rounded-[10px] transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:-translate-y-[2px] active:translate-y-[1px]"
+            </FlipButton>
+            <FlipButton
+              ref={transcriptBtnRef}
+              wrapperClassName="w-auto h-auto"
+              className="btn-flip-primary"
               aria-label="View Transcript"
-              style={{
-                background: "#2E353B",
-                color: "#D2DCE5",
-                boxShadow: `
-                  0 0 0 1px rgba(196, 238, 240, 0.12),
-                  0 2px 4px rgba(0,0,0,0.4),
-                  0 8px 16px -4px rgba(0,0,0,0.7),
-                  inset 0 1px 0 rgba(196, 238, 240, 0.08),
-                  inset 0 -2px 4px rgba(0,0,0,0.5)
-                `,
-              }}
+              onClick={() => openPdf('transcript')}
+              style={{ opacity: (pdfType === 'transcript' && pdfAnimState !== 'hidden') ? 0 : 1, transition: 'opacity 0ms, transform 250ms ease-in-out' }}
             >
               Transcript
-            </button>
+            </FlipButton>
           </div>
         </main>
 
         {/* Scroll Indicator */}
         <div
           className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer z-20"
+          style={{ display: isLandingHidden ? 'none' : undefined }}
           onClick={goToExperiences}
         >
           <div style={{ animation: "bob 2s ease-in-out infinite" }}>
@@ -397,6 +682,15 @@ function App() {
         onClose={goToLanding} 
         cardRect={cardRect}
         animState={animState}
+      />
+
+      {/* PDF VIEWER OVERLAY */}
+      <PDFViewerPanel
+        animState={pdfAnimState}
+        startRect={pdfStartRect}
+        title={pdfType === 'resume' ? 'Resume' : 'Transcript'}
+        fileUrl={pdfType === 'resume' ? '/src/assets/sahransahilresume.pdf' : '/src/assets/Academic History - ACORN.pdf'}
+        onClose={closePdf}
       />
     </div>
   );

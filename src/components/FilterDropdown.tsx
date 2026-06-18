@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FlipButton } from "@/components/ui/FlipButton";
 
 interface FilterDropdownProps {
   label: string;
@@ -27,27 +28,24 @@ export function FilterDropdown({ label, options, value, onChange }: FilterDropdo
 
   return (
     <div className="relative z-[100]" ref={containerRef}>
-      <button
+      <FlipButton
         onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "flex items-center gap-2 rounded-[8px] bg-[#2E353B] border border-[rgba(54,62,69,1)]",
-          "px-[14px] py-[6px] font-sans text-[13px] text-[#D2DCE5] transition-all",
-          "hover:bg-[rgba(196,238,240,0.04)]",
-        )}
-        style={{
-          boxShadow: "0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(196, 238, 240, 0.05)",
-        }}
+        wrapperClassName="w-full"
+        className={cn("btn-flip-secondary")}
+        style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '8px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
       >
-        <span className="opacity-60">{label}:</span>
-        <span className="font-semibold">{value}</span>
-        <ChevronDown
-          size={14}
-          className={cn(
-            "text-[rgba(210,220,229,0.4)] transition-transform duration-200",
-            isOpen && "rotate-180"
-          )}
-        />
-      </button>
+        <div className="flex items-center gap-2">
+          <span className="opacity-60">{label}:</span>
+          <span className="font-semibold">{value}</span>
+          <ChevronDown
+            size={14}
+            className={cn(
+              "text-[rgba(210,220,229,0.4)] transition-transform duration-200",
+              isOpen && "rotate-180"
+            )}
+          />
+        </div>
+      </FlipButton>
 
       {isOpen && (
         <div

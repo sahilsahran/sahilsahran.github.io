@@ -56,6 +56,119 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Parallax background scroll — CSS-only replacement for JS rAF loop */
+@keyframes parallax-slow {
+  from { background-position: 0 0; }
+  to { background-position: -40px 0; }
+}
+@keyframes parallax-mid {
+  from { background-position: 0 0; }
+  to { background-position: -60px 0; }
+}
+@keyframes parallax-fast {
+  from { background-position: 0 0; }
+  to { background-position: -120px 0; }
+}
+
 /* Prevent layout shift during 3D transforms */
 .preserve-3d { transform-style: preserve-3d; }
 .backface-hidden { backface-visibility: hidden; }
+
+@keyframes float-bob {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes float-bob-reverse {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(8px); }
+}
+
+/* Subtle idle tilt for the IDCard */
+@keyframes idle-tilt {
+  0%   { transform: rotateX(1.5deg) rotateY(-2deg); }
+  25%  { transform: rotateX(-1deg) rotateY(1.5deg); }
+  50%  { transform: rotateX(2deg)  rotateY(2.5deg); }
+  75%  { transform: rotateX(-1.5deg) rotateY(-1deg); }
+  100% { transform: rotateX(1.5deg) rotateY(-2deg); }
+}
+
+/* Rolling shadow continuous rotation */
+@keyframes rolling-shadow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Custom minimal scrollbar */
+.minimal-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.minimal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.minimal-scrollbar::-webkit-scrollbar-thumb {
+  background: #C4EEF0;
+  border-radius: 4px;
+}
+.minimal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #C4EEF0 transparent;
+}
+
+/* Flip Button Utilities */
+.btn-flip-primary {
+  background: #D2DCE5;
+  color: #262C31;
+  border-radius: 10px;
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05);
+  padding: 12px 32px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.btn-flip-secondary {
+  background: #2E353B;
+  color: #D2DCE5;
+  border-radius: 10px;
+  border: 1px solid rgba(196, 238, 240, 0.12);
+  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05);
+  padding: 12px 32px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.btn-icon {
+  background: transparent;
+  color: rgba(210,220,229,0.6);
+  border-radius: 8px;
+  padding: 0;
+  transition: all 200ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon:hover, .group:hover .btn-icon {
+  background: rgba(196,238,240,0.06);
+  color: #C4EEF0;
+}
+
+.btn-flip-back {
+  background: #A4C6D3 !important;
+  color: #262C31 !important;
+  border-color: transparent !important;
+}
+
+.btn-flip-icon-back {
+  background: transparent !important;
+  color: #A4C6D3 !important;
+}
+
+/* Pause all background animations when PDF viewer is active */
+.animations-paused * {
+  animation-play-state: paused !important;
+}
