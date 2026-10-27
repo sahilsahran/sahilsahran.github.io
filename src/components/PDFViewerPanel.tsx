@@ -1,16 +1,20 @@
 import { useState, useEffect } from "react";
-import { Download, X } from "lucide-react";
+import { Download, X, FileText } from "lucide-react";
 import type { PdfAnimState } from "../App";
 
 interface PDFViewerPanelProps {
   animState: PdfAnimState;
   startRect: DOMRect | null;
-  title: string;
-  fileUrl: string;
+  viewerData: {
+    type: 'resume' | 'transcript' | 'custom';
+    title: string;
+    fileUrl: string;
+    fileType: 'pdf' | 'image';
+  };
   onClose: () => void;
 }
 
-export function PDFViewerPanel({ animState, startRect, title, fileUrl, onClose }: PDFViewerPanelProps) {
+export function PDFViewerPanel({ animState, startRect, viewerData, onClose }: PDFViewerPanelProps) {
   const [windowSize, setWindowSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [mounted, setMounted] = useState(false);
 
@@ -156,9 +160,13 @@ export function PDFViewerPanel({ animState, startRect, title, fileUrl, onClose }
         className="relative w-full h-full pointer-events-auto"
         style={getFlipperStyle()}
       >
-        {/* FRONT FACE (Button Clone) - Starts Blue because it was hovered */}
+        {/* FRONT FACE (Button Clone or Sidebar File Clone) */}
         <div 
-          className="absolute inset-0 flex items-center justify-center bg-[#A4C6D3] text-[#262C31] rounded-[10px]"
+          className={`absolute inset-0 flex items-center justify-center rounded-[10px] ${
+            viewerData.type === 'custom'
+              ? 'bg-[#262C31] border border-[rgba(54,62,69,0.8)]'
+              : 'bg-[#A4C6D3] text-[#262C31]'
+          }`}
           style={{ 
             backfaceVisibility: 'hidden', 
             WebkitBackfaceVisibility: 'hidden',
@@ -167,9 +175,22 @@ export function PDFViewerPanel({ animState, startRect, title, fileUrl, onClose }
             transition: 'opacity 200ms ease, box-shadow 800ms ease',
           }}
         >
-          <span className="font-sans text-[14px] font-semibold tracking-[0.06em]">
-            {title}
-          </span>
+          {viewerData.type === 'custom' ? (
+            viewerData.fileType === 'image' ? (
+              <img src={viewerData.fileUrl} alt={viewerData.title} className="w-full h-full object-contain p-4" />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-4">
+                <FileText size={32} className="text-[rgba(210,220,229,0.2)] mb-2" />
+                <span className="font-mono text-[10px] text-[rgba(210,220,229,0.4)] text-center line-clamp-2">
+                  {viewerData.title}
+                </span>
+              </div>
+            )
+          ) : (
+            <span className="font-sans text-[14px] font-semibold tracking-[0.06em]">
+              {viewerData.title}
+            </span>
+          )}
         </div>
 
         {/* BACK FACE (Blank / Modal Container) - Main Background Color */}
@@ -188,12 +209,12 @@ export function PDFViewerPanel({ animState, startRect, title, fileUrl, onClose }
             className="flex items-center justify-between px-4 py-3 shrink-0 transition-opacity duration-300 border-b border-[rgba(54,62,69,0.4)]"
             style={{ opacity: isModalOpen ? 1 : 0 }}
           >
-            <span className="font-sans font-bold text-[#D2DCE5] text-[15px] uppercase tracking-wider">
-              {title}
+            <span className="font-sans font-bold text-[#D2DCE5] text-[15px] uppercase tracking-wider truncate max-w-[70%]">
+              {viewerData.title}
             </span>
             <div className="flex items-center gap-3">
               <a 
-                href={fileUrl}
+                href={viewerData.fileUrl}
                 download
                 className="btn-icon w-8 h-8 text-[#D2DCE5] hover:text-[#C4EEF0] hover:bg-[rgba(196,238,240,0.06)]"
                 aria-label="Download PDF"
@@ -210,17 +231,25 @@ export function PDFViewerPanel({ animState, startRect, title, fileUrl, onClose }
             </div>
           </div>
 
-          {/* PDF Viewer */}
+          {/* File Viewer */}
           <div 
-            className="flex-1 w-full bg-[#2E353B] transition-opacity duration-500 delay-100"
+            className="flex-1 w-full h-full min-h-0 overflow-hidden bg-[#2E353B] transition-opacity duration-500 delay-100 flex items-center justify-center p-4"
             style={{ opacity: isModalOpen ? 1 : 0 }}
           >
             {isModalOpen && (
-              <iframe 
-                src={`${fileUrl}#toolbar=0`} 
-                className="w-full h-full border-none"
-                title={title}
-              />
+              viewerData.fileType === 'image' ? (
+                <img 
+                  src={viewerData.fileUrl} 
+                  alt={viewerData.title} 
+                  className="w-full h-full object-contain rounded-[8px]" 
+                />
+              ) : (
+                <iframe 
+                  src={`${viewerData.fileUrl}#toolbar=0`} 
+                  className="w-full h-full border-none rounded-[8px]"
+                  title={viewerData.title}
+                />
+              )
             )}
           </div>
         </div>

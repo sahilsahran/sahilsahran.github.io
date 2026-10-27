@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Maximize2, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ExperienceCard } from "./ExperienceCard";
@@ -17,6 +17,7 @@ interface ExperienceSidebarProps {
   hasNext?: boolean;
   isListScaledDown?: boolean;
   zIndex?: number;
+  onOpenViewer?: (viewerData: any, startRect: DOMRect) => void;
 }
 
 export function ExperienceSidebar({ 
@@ -30,15 +31,28 @@ export function ExperienceSidebar({
   onNext,
   hasPrev,
   hasNext,
-  zIndex = 50
+  zIndex = 50,
+  onOpenViewer
 }: ExperienceSidebarProps) {
   const [activeFile, setActiveFile] = useState<ExperienceFile | null>(null);
+  const previewBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (experience?.files.length) {
       setActiveFile(experience.files[0]);
     }
   }, [experience]);
+
+  const handleFullscreen = () => {
+    if (!activeFile || !previewBoxRef.current || !onOpenViewer) return;
+    const rect = previewBoxRef.current.getBoundingClientRect();
+    onOpenViewer({
+      type: 'custom',
+      title: activeFile.name,
+      fileUrl: activeFile.path,
+      fileType: activeFile.type
+    }, rect);
+  };
 
   if (!experience) return null;
 
@@ -200,12 +214,15 @@ export function ExperienceSidebar({
           {experience.title}
         </h3>
 
-        <button
-          className="btn-icon w-8 h-8"
-          aria-label="Fullscreen"
-        >
-          <Maximize2 size={16} />
-        </button>
+        {activeFile && (
+          <button
+            className="btn-icon w-8 h-8 hover:text-[#C4EEF0]"
+            aria-label="Fullscreen"
+            onClick={handleFullscreen}
+          >
+            <Maximize2 size={16} />
+          </button>
+        )}
       </div>
 
       {/* File Switcher (Tabs) */}
@@ -253,7 +270,7 @@ export function ExperienceSidebar({
         </div>
 
         {experience.files.length > 0 && activeFile && (
-          <div>
+          <div ref={previewBoxRef}>
             <h4 className="font-sans text-[11px] uppercase tracking-wider text-[rgba(210,220,229,0.4)] mb-3">
               Attached File
             </h4>

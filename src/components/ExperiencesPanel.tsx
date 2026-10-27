@@ -15,9 +15,10 @@ interface ExperiencesPanelProps {
   onClose: () => void;
   cardRect: DOMRect | null;
   animState: AnimState;
+  onOpenViewer?: (viewerData: any, startRect: DOMRect) => void;
 }
 
-export function ExperiencesPanel({ onClose, cardRect, animState }: ExperiencesPanelProps) {
+export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }: ExperiencesPanelProps) {
   const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
   const [previousExperience, setPreviousExperience] = useState<Experience | null>(null);
   const [sidebarAnimState, setSidebarAnimState] = useState<SidebarAnimState>('hidden');
@@ -441,6 +442,7 @@ export function ExperiencesPanel({ onClose, cardRect, animState }: ExperiencesPa
               scaledRect={targetRectScaled}
               isListScaledDown={isListScaledDown}
               onClose={handleCloseSidebar}
+              onOpenViewer={onOpenViewer}
               hasPrev={filteredExperiences.findIndex(e => e.id === selectedExperience.id) > 0}
               hasNext={filteredExperiences.findIndex(e => e.id === selectedExperience.id) < filteredExperiences.length - 1}
               onPrev={() => {

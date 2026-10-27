@@ -22,7 +22,17 @@ function App() {
   // PDF Viewer state
   const [pdfAnimState, setPdfAnimState] = useState<PdfAnimState>('hidden');
   const [isPdfOpen, setIsPdfOpen] = useState(false);
-  const [pdfType, setPdfType] = useState<'resume' | 'transcript'>('resume');
+  const [viewerData, setViewerData] = useState<{
+    type: 'resume' | 'transcript' | 'custom';
+    title: string;
+    fileUrl: string;
+    fileType: 'pdf' | 'image';
+  }>({
+    type: 'resume',
+    title: 'Resume',
+    fileUrl: '/src/assets/sahransahilresume.pdf',
+    fileType: 'pdf'
+  });
   const [pdfStartRect, setPdfStartRect] = useState<DOMRect | null>(null);
   const resumeBtnRef = useRef<HTMLButtonElement>(null);
   const transcriptBtnRef = useRef<HTMLButtonElement>(null);
@@ -163,7 +173,19 @@ function App() {
     if (ref.current) {
       setPdfStartRect(ref.current.getBoundingClientRect());
     }
-    setPdfType(type);
+    setViewerData({
+      type,
+      title: type === 'resume' ? 'Resume' : 'Transcript',
+      fileUrl: type === 'resume' ? '/src/assets/sahransahilresume.pdf' : '/src/assets/Academic History - ACORN.pdf',
+      fileType: 'pdf'
+    });
+    setIsPdfOpen(true);
+  };
+
+  const handleOpenCustomViewer = (data: typeof viewerData, rect: DOMRect) => {
+    if (transitioning || isPdfOpen) return;
+    setPdfStartRect(rect);
+    setViewerData(data);
     setIsPdfOpen(true);
   };
 
@@ -645,7 +667,7 @@ function App() {
               className="btn-flip-primary"
               aria-label="View Resume"
               onClick={() => openPdf('resume')}
-              style={{ opacity: (pdfType === 'resume' && pdfAnimState !== 'hidden') ? 0 : 1, transition: 'opacity 0ms, transform 250ms ease-in-out' }}
+              style={{ opacity: (viewerData.type === 'resume' && pdfAnimState !== 'hidden') ? 0 : 1, transition: 'opacity 0ms, transform 250ms ease-in-out' }}
             >
               Resume
             </FlipButton>
@@ -655,7 +677,7 @@ function App() {
               className="btn-flip-primary"
               aria-label="View Transcript"
               onClick={() => openPdf('transcript')}
-              style={{ opacity: (pdfType === 'transcript' && pdfAnimState !== 'hidden') ? 0 : 1, transition: 'opacity 0ms, transform 250ms ease-in-out' }}
+              style={{ opacity: (viewerData.type === 'transcript' && pdfAnimState !== 'hidden') ? 0 : 1, transition: 'opacity 0ms, transform 250ms ease-in-out' }}
             >
               Transcript
             </FlipButton>
@@ -682,14 +704,14 @@ function App() {
         onClose={goToLanding} 
         cardRect={cardRect}
         animState={animState}
+        onOpenViewer={handleOpenCustomViewer}
       />
 
       {/* PDF VIEWER OVERLAY */}
       <PDFViewerPanel
         animState={pdfAnimState}
         startRect={pdfStartRect}
-        title={pdfType === 'resume' ? 'Resume' : 'Transcript'}
-        fileUrl={pdfType === 'resume' ? '/src/assets/sahransahilresume.pdf' : '/src/assets/Academic History - ACORN.pdf'}
+        viewerData={viewerData}
         onClose={closePdf}
       />
     </div>
