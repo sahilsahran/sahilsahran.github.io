@@ -276,23 +276,12 @@ export function ExperienceSidebar({
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-[24px] space-y-8">
-        <div className="space-y-5">
-          {experience.details.split("\n\n").map((section, i) => {
-            const [heading, ...body] = section.split("\n");
-            const hasHeading = body.length > 0;
-            return (
-              <div key={i}>
-                {hasHeading && (
-                  <h4 className="font-sans text-[13px] font-medium text-[#d2dce5] mb-1">
-                    {heading}
-                  </h4>
-                )}
-                <p className="font-sans text-[14px] leading-[1.7] text-[rgba(210,220,229,0.8)]">
-                  {hasHeading ? body.join(" ") : heading}
-                </p>
-              </div>
-            );
-          })}
+        <div className="space-y-4">
+          {experience.details.split("\n\n").map((paragraph, i) => (
+            <p key={i} className="font-sans text-[14px] leading-[1.7] text-[rgba(210,220,229,0.8)]">
+              {paragraph}
+            </p>
+          ))}
         </div>
 
         <div>
