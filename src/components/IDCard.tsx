@@ -190,7 +190,7 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
           {/* Bio Text Area */}
           <div className="absolute bottom-0 left-0 right-0 h-[24%] px-5 pb-4 flex flex-col justify-end z-20">
             <p className="text-[13px] leading-[1.6] text-[rgba(210,220,229,0.75)] font-sans">
-              Software developer & designer building thoughtful interfaces.
+              Second-year Electrical Engineering student interested in embedded systems, circuit design and digital hardware.
             </p>
           </div>
         </div>

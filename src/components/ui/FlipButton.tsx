@@ -6,10 +6,12 @@ export interface FlipButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   wrapperClassName?: string;
   frontClassName?: string;
   backClassName?: string;
+  /** Shadow on both faces; defaults to the large landing-page shadow */
+  faceShadow?: string;
 }
 
 export const FlipButton = React.forwardRef<HTMLButtonElement, FlipButtonProps>(
-  ({ children, className, wrapperClassName, frontClassName, backClassName, style, ...props }, ref) => {
+  ({ children, className, wrapperClassName, frontClassName, backClassName, faceShadow, style, ...props }, ref) => {
     const [flipped, setFlipped] = useState(false);
 
     return (
@@ -47,7 +49,7 @@ export const FlipButton = React.forwardRef<HTMLButtonElement, FlipButtonProps>(
             style={{ 
               backfaceVisibility: 'hidden', 
               WebkitBackfaceVisibility: 'hidden',
-              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05)'
+              boxShadow: faceShadow ?? '0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05)'
             }}
           >
             {children}
@@ -64,7 +66,7 @@ export const FlipButton = React.forwardRef<HTMLButtonElement, FlipButtonProps>(
               backfaceVisibility: 'hidden', 
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateX(180deg)',
-              boxShadow: '0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05)'
+              boxShadow: faceShadow ?? '0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05)'
             }}
           >
             {children}

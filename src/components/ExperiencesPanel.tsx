@@ -16,9 +16,10 @@ interface ExperiencesPanelProps {
   cardRect: DOMRect | null;
   animState: AnimState;
   onOpenViewer?: (viewerData: any, startRect: DOMRect) => void;
+  viewerOpen?: boolean;
 }
 
-export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }: ExperiencesPanelProps) {
+export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer, viewerOpen = false }: ExperiencesPanelProps) {
   const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
   const [previousExperience, setPreviousExperience] = useState<Experience | null>(null);
   const [sidebarAnimState, setSidebarAnimState] = useState<SidebarAnimState>('hidden');
@@ -37,6 +38,38 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
   const [typeFilter, setTypeFilter] = useState("All");
 
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Sidebar animations are timer-driven. Track every timer so a reset can cancel it,
+  // and lock out new selections until the current animation finishes. A click made
+  // during an animation is remembered (latest wins) and played once it ends.
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const busyRef = useRef(false);
+  const pendingRef = useRef<{ kind: 'select'; exp: Experience } | { kind: 'close' } | null>(null);
+  const actionsRef = useRef<{ select: (exp: Experience) => void; close: () => void }>({ select: () => {}, close: () => {} });
+
+  const later = (fn: () => void, ms: number) => {
+    timersRef.current.push(setTimeout(fn, ms));
+  };
+
+  const clearTimers = () => {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+    busyRef.current = false;
+    pendingRef.current = null;
+  };
+
+  const lockFor = (ms: number) => {
+    busyRef.current = true;
+    later(() => {
+      busyRef.current = false;
+      const next = pendingRef.current;
+      pendingRef.current = null;
+      if (next?.kind === 'select') actionsRef.current.select(next.exp);
+      else if (next?.kind === 'close') actionsRef.current.close();
+    }, ms);
+  };
+
+  useEffect(() => clearTimers, []);
 
   const filteredExperiences = EXPERIENCES.filter((exp) => {
     if (skillFilter.length > 0 && !skillFilter.some((s) => exp.skills.includes(s))) return false;
@@ -60,6 +93,7 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
 
   useEffect(() => {
     if (animState === 'hidden') {
+      clearTimers();
       setSelectedExperience(null);
       setPreviousExperience(null);
       setSidebarAnimState('hidden');
@@ -74,10 +108,29 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
     }
   }, [animState]);
 
-  const handleItemClick = (exp: Experience, e: React.MouseEvent<HTMLDivElement>) => {
-    if (selectedExperience?.id === exp.id && sidebarAnimState === 'open') return;
+  const handleItemClick = (exp: Experience) => {
+    if (busyRef.current) {
+      pendingRef.current = { kind: 'select', exp };
+      return;
+    }
+    actionsRef.current.select(exp);
+  };
 
-    let scaledRect = e.currentTarget.getBoundingClientRect();
+  const requestCloseSidebar = () => {
+    if (busyRef.current) {
+      pendingRef.current = { kind: 'close' };
+      return;
+    }
+    actionsRef.current.close();
+  };
+
+  const selectExperience = (exp: Experience) => {
+    if (selectedExperience?.id === exp.id && sidebarAnimState !== 'hidden') return;
+
+    const cardEl = document.getElementById(`exp-card-${exp.id}`)?.firstElementChild;
+    if (!cardEl) return; // filtered out of the list while waiting
+
+    let scaledRect = cardEl.getBoundingClientRect();
     let unscaledRect = scaledRect;
     
     let scaledOldRect = targetRect;
@@ -99,7 +152,7 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
       listWrapper.style.transition = 'none';
       listWrapper.style.transform = 'scale(1)';
       
-      unscaledRect = e.currentTarget.getBoundingClientRect();
+      unscaledRect = cardEl.getBoundingClientRect();
       
       if (selectedExperience) {
         const prevWrapperEl = document.getElementById(`exp-card-${selectedExperience.id}`);
@@ -120,9 +173,9 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
       setPrevTargetRect(unscaledOldRect);
       setPrevTargetRectScaled(scaledOldRect);
       
-      setTimeout(() => setPrevSidebarAnimState('collapsing'), 200);
-      setTimeout(() => setPrevSidebarAnimState('flight_out'), 600);
-      setTimeout(() => {
+      later(() => setPrevSidebarAnimState('collapsing'), 200);
+      later(() => setPrevSidebarAnimState('flight_out'), 600);
+      later(() => {
         setPrevSidebarAnimState('hidden');
         setPreviousExperience(null);
         setPrevTargetRect(null);
@@ -134,10 +187,10 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
       setTargetRectScaled(scaledRect);
       setSidebarAnimState('hidden');
       
-      setTimeout(() => setSidebarAnimState('flight_in'), 30);
-      setTimeout(() => setSidebarAnimState('pausing'), 630);
-      setTimeout(() => setSidebarAnimState('expanding'), 830);
-      setTimeout(() => setSidebarAnimState('open'), 1230);
+      later(() => setSidebarAnimState('flight_in'), 30);
+      later(() => setSidebarAnimState('pausing'), 630);
+      later(() => setSidebarAnimState('expanding'), 830);
+      later(() => setSidebarAnimState('open'), 1230);
     } else {
       // Normal open
       setSelectedExperience(exp);
@@ -145,14 +198,16 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
       setTargetRectScaled(null);
       setSidebarAnimState('hidden');
       
-      setTimeout(() => setSidebarAnimState('flight_in'), 30);
-      setTimeout(() => setSidebarAnimState('pausing'), 630);
-      setTimeout(() => setSidebarAnimState('expanding'), 830);
-      setTimeout(() => setSidebarAnimState('open'), 1230);
+      later(() => setSidebarAnimState('flight_in'), 30);
+      later(() => setSidebarAnimState('pausing'), 630);
+      later(() => setSidebarAnimState('expanding'), 830);
+      later(() => setSidebarAnimState('open'), 1230);
     }
+    lockFor(1250);
   };
 
-  const handleCloseSidebar = () => {
+  const closeSidebar = () => {
+    if (!selectedExperience || sidebarAnimState === 'hidden') return;
     setTargetRectScaled(null);
     setPrevTargetRectScaled(null);
     // Update targetRect right as we start closing to account for any scrolling that happened
@@ -176,16 +231,19 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
     }
     
     setSidebarAnimState('fading_out');
-    setTimeout(() => setSidebarAnimState('collapsing'), 200);
-    setTimeout(() => setSidebarAnimState('flight_out'), 600);
+    later(() => setSidebarAnimState('collapsing'), 200);
+    later(() => setSidebarAnimState('flight_out'), 600);
     // Set hidden first so the list card becomes visible, then unmount 150ms later
     // so the sidebar can fade out (via its hidden-state opacity transition) concurrently.
-    setTimeout(() => setSidebarAnimState('hidden'), 1250);
-    setTimeout(() => {
+    later(() => setSidebarAnimState('hidden'), 1250);
+    later(() => {
       setSelectedExperience(null);
       setTargetRect(null);
     }, 1400);
+    lockFor(1400);
   };
+
+  actionsRef.current = { select: selectExperience, close: closeSidebar };
 
   const getContainerStyles = (): React.CSSProperties => {
     const rectTop = cardRect ? cardRect.top : 0;
@@ -422,7 +480,7 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
                       <ExperienceCard 
                         experience={exp} 
                         isSelected={false} 
-                        onClick={(e) => {handleItemClick(exp, e)}} 
+                        onClick={() => handleItemClick(exp)} 
                       />
                     </div>
                   );
@@ -441,30 +499,25 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer }:
               startRect={targetRect}
               scaledRect={targetRectScaled}
               isListScaledDown={isListScaledDown}
-              onClose={handleCloseSidebar}
+              onClose={requestCloseSidebar}
               onOpenViewer={onOpenViewer}
+              position={filteredExperiences.findIndex(e => e.id === selectedExperience.id) + 1}
+              total={filteredExperiences.length}
+              keyboardEnabled={!viewerOpen}
               hasPrev={filteredExperiences.findIndex(e => e.id === selectedExperience.id) > 0}
               hasNext={filteredExperiences.findIndex(e => e.id === selectedExperience.id) < filteredExperiences.length - 1}
               onPrev={() => {
                 const currentIndex = filteredExperiences.findIndex(e => e.id === selectedExperience.id);
                 if (currentIndex > 0) {
                   const prevExp = filteredExperiences[currentIndex - 1];
-                  const wrapperEl = document.getElementById(`exp-card-${prevExp.id}`);
-                  const el = wrapperEl?.firstElementChild;
-                  if (el) {
-                    handleItemClick(prevExp, { currentTarget: el } as unknown as React.MouseEvent<HTMLDivElement>);
-                  }
+                  handleItemClick(prevExp);
                 }
               }}
               onNext={() => {
                 const currentIndex = filteredExperiences.findIndex(e => e.id === selectedExperience.id);
                 if (currentIndex < filteredExperiences.length - 1) {
                   const nextExp = filteredExperiences[currentIndex + 1];
-                  const wrapperEl = document.getElementById(`exp-card-${nextExp.id}`);
-                  const el = wrapperEl?.firstElementChild;
-                  if (el) {
-                    handleItemClick(nextExp, { currentTarget: el } as unknown as React.MouseEvent<HTMLDivElement>);
-                  }
+                  handleItemClick(nextExp);
                 }
               }}
             />

@@ -1,20 +1,27 @@
 import { useState, useEffect } from "react";
-import { Download, X, FileText } from "lucide-react";
+import { Download, X, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import type { PdfAnimState } from "../App";
+import { toYouTubeEmbed, type ExperienceFile } from "@/data/experiences";
+
+export type ViewerData = {
+  type: 'resume' | 'transcript' | 'custom';
+  title: string;
+  fileUrl: string;
+  fileType: 'pdf' | 'image' | 'video' | 'youtube';
+  /** All attachments of the experience, so the viewer can step between them */
+  gallery?: ExperienceFile[];
+  index?: number;
+};
 
 interface PDFViewerPanelProps {
   animState: PdfAnimState;
   startRect: DOMRect | null;
-  viewerData: {
-    type: 'resume' | 'transcript' | 'custom';
-    title: string;
-    fileUrl: string;
-    fileType: 'pdf' | 'image';
-  };
+  viewerData: ViewerData;
   onClose: () => void;
+  onNavigate?: (step: 1 | -1) => void;
 }
 
-export function PDFViewerPanel({ animState, startRect, viewerData, onClose }: PDFViewerPanelProps) {
+export function PDFViewerPanel({ animState, startRect, viewerData, onClose, onNavigate }: PDFViewerPanelProps) {
   const [windowSize, setWindowSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [mounted, setMounted] = useState(false);
 
@@ -34,6 +41,20 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose }: PD
       setMounted(false);
     }
   }, [animState]);
+
+  const galleryCount = viewerData.gallery?.length ?? 0;
+  const canNavigate = galleryCount > 1 && !!onNavigate;
+
+  // Arrow keys step through the attachments while the viewer is open
+  useEffect(() => {
+    if (animState !== 'open' || !canNavigate) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') onNavigate!(-1);
+      else if (e.key === 'ArrowRight') onNavigate!(1);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [animState, canNavigate, onNavigate]);
 
   if (!startRect || animState === 'hidden') return null;
 
@@ -178,6 +199,8 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose }: PD
           {viewerData.type === 'custom' ? (
             viewerData.fileType === 'image' ? (
               <img src={viewerData.fileUrl} alt={viewerData.title} className="w-full h-full object-contain p-4" />
+            ) : viewerData.fileType === 'video' ? (
+              <video src={viewerData.fileUrl} muted playsInline preload="metadata" className="w-full h-full object-contain p-4" />
             ) : (
               <div className="flex flex-col items-center justify-center p-4">
                 <FileText size={32} className="text-[rgba(210,220,229,0.2)] mb-2" />
@@ -211,6 +234,11 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose }: PD
           >
             <span className="font-sans font-bold text-[#D2DCE5] text-[15px] uppercase tracking-wider truncate max-w-[70%]">
               {viewerData.title}
+              {canNavigate && (
+                <span className="ml-3 font-mono text-[11px] font-normal tracking-normal text-[rgba(210,220,229,0.4)]">
+                  {(viewerData.index ?? 0) + 1} / {galleryCount}
+                </span>
+              )}
             </span>
             <div className="flex items-center gap-3">
               <a 
@@ -233,18 +261,55 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose }: PD
 
           {/* File Viewer */}
           <div 
-            className="flex-1 w-full h-full min-h-0 overflow-hidden bg-[#2E353B] transition-opacity duration-500 delay-100 flex items-center justify-center p-4"
+            className="relative flex-1 w-full h-full min-h-0 overflow-hidden bg-[#2E353B] transition-opacity duration-500 delay-100 flex items-center justify-center p-4"
             style={{ opacity: isModalOpen ? 1 : 0 }}
           >
+            {isModalOpen && canNavigate && (
+              <>
+                <button
+                  onClick={() => onNavigate!(-1)}
+                  className="btn-icon absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[rgba(38,44,49,0.55)] backdrop-blur-[6px] opacity-50 hover:opacity-100"
+                  aria-label="Previous attachment"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={() => onNavigate!(1)}
+                  className="btn-icon absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[rgba(38,44,49,0.55)] backdrop-blur-[6px] opacity-50 hover:opacity-100"
+                  aria-label="Next attachment"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </>
+            )}
             {isModalOpen && (
               viewerData.fileType === 'image' ? (
                 <img 
+                  key={viewerData.fileUrl}
                   src={viewerData.fileUrl} 
                   alt={viewerData.title} 
                   className="w-full h-full object-contain rounded-[8px]" 
                 />
+              ) : viewerData.fileType === 'youtube' ? (
+                <iframe
+                  src={toYouTubeEmbed(viewerData.fileUrl)}
+                  className="w-full h-full border-none rounded-[8px]"
+                  title={viewerData.title}
+                  allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : viewerData.fileType === 'video' ? (
+                <video
+                  key={viewerData.fileUrl}
+                  src={viewerData.fileUrl}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-contain rounded-[8px]"
+                />
               ) : (
                 <iframe 
+                  key={viewerData.fileUrl}
                   src={`${viewerData.fileUrl}#toolbar=0`} 
                   className="w-full h-full border-none rounded-[8px]"
                   title={viewerData.title}

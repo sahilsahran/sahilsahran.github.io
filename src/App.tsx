@@ -4,7 +4,7 @@ import { ParallaxGrid } from "@/components/ParallaxGrid";
 import { IDCard } from "@/components/IDCard";
 import { ExperiencesPanel } from "@/components/ExperiencesPanel";
 import { FlipButton } from "@/components/ui/FlipButton";
-import { PDFViewerPanel } from "@/components/PDFViewerPanel";
+import { PDFViewerPanel, type ViewerData } from "@/components/PDFViewerPanel";
 
 export type AnimState = 'hidden' | 'flipping_in' | 'expanding' | 'open' | 'collapsing' | 'flipping_out';
 export type PdfAnimState = 'hidden' | 'flipping_in' | 'expanding' | 'open' | 'collapsing' | 'flipping_out';
@@ -22,15 +22,10 @@ function App() {
   // PDF Viewer state
   const [pdfAnimState, setPdfAnimState] = useState<PdfAnimState>('hidden');
   const [isPdfOpen, setIsPdfOpen] = useState(false);
-  const [viewerData, setViewerData] = useState<{
-    type: 'resume' | 'transcript' | 'custom';
-    title: string;
-    fileUrl: string;
-    fileType: 'pdf' | 'image';
-  }>({
+  const [viewerData, setViewerData] = useState<ViewerData>({
     type: 'resume',
     title: 'Resume',
-    fileUrl: '/src/assets/sahransahilresume.pdf',
+    fileUrl: '/resume/sahil-sahran-resume.pdf',
     fileType: 'pdf'
   });
   const [pdfStartRect, setPdfStartRect] = useState<DOMRect | null>(null);
@@ -44,10 +39,19 @@ function App() {
     }
   }, []);
 
+  // Latest animation state, readable from event listeners without re-subscribing
+  const animStateRef = useRef<AnimState>('hidden');
+  animStateRef.current = animState;
+  const measureNameCenterRef = useRef<() => void>(() => {});
+
   // Dynamically calculate exact center distance for the Name text
   useEffect(() => {
     const updateNameCenter = () => {
       if (!nameRef.current) return;
+      // Only measure while the landing page is at rest. Mid-animation the section is
+      // scaled, and once the panel is open the landing is display:none (a 0x0 rect),
+      // which would send the name flying to the bottom-right corner.
+      if (animStateRef.current !== 'hidden') return;
 
       const el = nameRef.current;
 
@@ -56,6 +60,7 @@ function App() {
       // is a composited property) and mathematically undo it to get the
       // untransformed natural position.
       const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
 
       const cs = getComputedStyle(el);
       let tx = 0, ty = 0;
@@ -97,6 +102,7 @@ function App() {
     };
     
     // Ensure fonts are loaded before measuring text widths
+    measureNameCenterRef.current = updateNameCenter;
     document.fonts.ready.then(updateNameCenter);
     updateNameCenter();
     window.addEventListener('resize', updateNameCenter);
@@ -176,7 +182,7 @@ function App() {
     setViewerData({
       type,
       title: type === 'resume' ? 'Resume' : 'Transcript',
-      fileUrl: type === 'resume' ? '/src/assets/sahransahilresume.pdf' : '/src/assets/Academic History - ACORN.pdf',
+      fileUrl: type === 'resume' ? '/resume/sahil-sahran-resume.pdf' : '/documents/academic-history.pdf',
       fileType: 'pdf'
     });
     setIsPdfOpen(true);
@@ -189,6 +195,16 @@ function App() {
     setIsPdfOpen(true);
   };
 
+  const navigateViewer = (step: 1 | -1) => {
+    setViewerData((d) => {
+      if (!d.gallery || d.gallery.length < 2) return d;
+      const n = d.gallery.length;
+      const index = ((d.index ?? 0) + step + n) % n;
+      const file = d.gallery[index];
+      return { ...d, index, title: file.name, fileUrl: file.path, fileType: file.type };
+    });
+  };
+
   const closePdf = () => {
     setIsPdfOpen(false);
   };
@@ -198,6 +214,8 @@ function App() {
     if (cardWrapperRef.current) {
       setCardRect(cardWrapperRef.current.getBoundingClientRect());
     }
+    // Re-measure right before the name animates, in case the window changed since
+    measureNameCenterRef.current();
     setTransitioning(true);
     setSection('experiences');
     setTimeout(() => setTransitioning(false), 1200); // 800+400
@@ -653,7 +671,7 @@ function App() {
                 transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`,
               }}>
                 <p className="font-sans font-normal text-[clamp(1rem,1.5vw,1.25rem)] text-[rgba(164,198,211,0.7)] tracking-[0.05em]">
-                  Full-stack developer & designer
+                  Electrical Engineering · University of Toronto
                 </p>
               </div>
             </div>
@@ -705,6 +723,7 @@ function App() {
         cardRect={cardRect}
         animState={animState}
         onOpenViewer={handleOpenCustomViewer}
+        viewerOpen={pdfAnimState !== 'hidden'}
       />
 
       {/* PDF VIEWER OVERLAY */}
@@ -713,6 +732,7 @@ function App() {
         startRect={pdfStartRect}
         viewerData={viewerData}
         onClose={closePdf}
+        onNavigate={navigateViewer}
       />
     </div>
   );

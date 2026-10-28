@@ -30,9 +30,10 @@ export function FilterDropdown({ label, options, value, onChange }: FilterDropdo
     <div className="relative z-[100]" ref={containerRef}>
       <FlipButton
         onClick={() => setIsOpen(!isOpen)}
+        faceShadow='0 8px 16px -6px rgba(0,0,0,0.55), 0 3px 6px -2px rgba(0,0,0,0.35), 0 0 0 1px rgba(196,238,240,0.05)'
         wrapperClassName="w-full"
         className={cn("btn-flip-secondary")}
-        style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '8px', boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}
+        style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
       >
         <div className="flex items-center gap-2">
           <span className="opacity-60">{label}:</span>
@@ -51,7 +52,7 @@ export function FilterDropdown({ label, options, value, onChange }: FilterDropdo
         <div
           className="absolute right-0 top-full mt-2 min-w-[160px] origin-top bg-[#2E353B] border border-[rgba(54,62,69,1)] rounded-[10px] overflow-hidden"
           style={{
-            boxShadow: "0 16px 40px rgba(0,0,0,0.7), 0 4px 12px rgba(0,0,0,0.4)",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.18)",
             animation: "dropdown-enter 150ms ease-out forwards",
           }}
         >
