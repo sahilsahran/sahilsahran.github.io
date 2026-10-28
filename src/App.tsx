@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { ChevronDown } from "lucide-react";
 import { ParallaxGrid } from "@/components/ParallaxGrid";
 import { IDCard } from "@/components/IDCard";
@@ -9,11 +9,36 @@ import { PDFViewerPanel, type ViewerData } from "@/components/PDFViewerPanel";
 export type AnimState = 'hidden' | 'flipping_in' | 'expanding' | 'open' | 'collapsing' | 'flipping_out';
 export type PdfAnimState = 'hidden' | 'flipping_in' | 'expanding' | 'open' | 'collapsing' | 'flipping_out';
 
+// Space kept clear above and below the landing content (the scroll hint sits in the bottom one)
+const LANDING_PAD_BOTTOM = 84;
+const landingPadTop = () => (window.innerWidth < 640 || window.innerHeight < 500 ? 24 : LANDING_PAD_BOTTOM);
+
+// Where an element sits when the landing section is at rest. While a panel is open the
+// section is scaled around its center, so getBoundingClientRect alone gives a shrunken rect.
+function restingRect(el: Element, section: Element): DOMRect {
+  const r = el.getBoundingClientRect();
+  const t = getComputedStyle(section).transform;
+  const s = t && t !== 'none' ? new DOMMatrixReadOnly(t).a || 1 : 1;
+  const sr = section.getBoundingClientRect();
+  const cx = sr.left + sr.width / 2;
+  const cy = sr.top + sr.height / 2;
+  return new DOMRect(cx + (r.left - cx) / s, cy + (r.top - cy) / s, r.width / s, r.height / s);
+}
+
 function App() {
   const [section, setSection] = useState<'landing' | 'experiences'>('landing');
   const [transitioning, setTransitioning] = useState(false);
   const cardWrapperRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLDivElement>(null);
+  const nameWrapRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const buttonsRef = useRef<HTMLDivElement>(null);
+  // Landing content is zoomed down to fit short or narrow windows
+  const [fitZoom, setFitZoom] = useState(1);
+  const fitZoomRef = useRef(1);
+  fitZoomRef.current = fitZoom;
   const [cardRect, setCardRect] = useState<DOMRect | null>(null);
   const [animState, setAnimState] = useState<AnimState>('hidden');
   const [nameTransform, setNameTransform] = useState({ x: 0, y: 0 });
@@ -31,83 +56,86 @@ function App() {
   const [pdfStartRect, setPdfStartRect] = useState<DOMRect | null>(null);
   const resumeBtnRef = useRef<HTMLButtonElement>(null);
   const transcriptBtnRef = useRef<HTMLButtonElement>(null);
+  // What the open viewer grew out of, so its rect can be re-measured after a resize
+  const pdfOriginRef = useRef<{ el: Element; onLanding: boolean } | null>(null);
+  const pdfAnimStateRef = useRef<PdfAnimState>('hidden');
+  pdfAnimStateRef.current = pdfAnimState;
 
-  // Initial capture
+  const measureLayoutRef = useRef<() => void>(() => {});
+
+  // Measure the landing layout: how far to zoom it to fit the window, where the ID card
+  // rests (the experiences panel flies out of and back into it), and how far the name
+  // moves to reach the center. The landing stays laid out (only hidden) while a panel is
+  // open, so this runs on every resize and the return animations land in the right place.
   useEffect(() => {
-    if (cardWrapperRef.current && !cardRect) {
-      setCardRect(cardWrapperRef.current.getBoundingClientRect());
-    }
-  }, []);
+    const measureLayout = () => {
+      const section = sectionRef.current;
+      const main = mainRef.current;
+      const nameWrap = nameWrapRef.current;
+      const name = nameRef.current;
+      const cardWrap = cardWrapperRef.current;
+      if (!section || !main || !nameWrap || !name || !cardWrap) return;
 
-  // Latest animation state, readable from event listeners without re-subscribing
-  const animStateRef = useRef<AnimState>('hidden');
-  animStateRef.current = animState;
-  const measureNameCenterRef = useRef<() => void>(() => {});
+      const mainRect = restingRect(main, section);
+      if (mainRect.width === 0 || mainRect.height === 0) return;
 
-  // Dynamically calculate exact center distance for the Name text
-  useEffect(() => {
-    const updateNameCenter = () => {
-      if (!nameRef.current) return;
-      // Only measure while the landing page is at rest. Mid-animation the section is
-      // scaled, and once the panel is open the landing is display:none (a 0x0 rect),
-      // which would send the name flying to the bottom-right corner.
-      if (animStateRef.current !== 'hidden') return;
-
-      const el = nameRef.current;
-
-      // Read bounding rect (includes current CSS transform).
-      // Then read the transform via getComputedStyle (no reflow — transform
-      // is a composited property) and mathematically undo it to get the
-      // untransformed natural position.
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
-
-      const cs = getComputedStyle(el);
-      let tx = 0, ty = 0;
-      if (cs.transform && cs.transform !== 'none') {
-        const m = cs.transform.match(/^matrix(?:3d)?\((.+)\)$/);
-        if (m) {
-          const vals = m[1].split(/,\s*/).map(Number);
-          const i = vals.length === 16 ? [12, 13] : [4, 5];
-          tx = vals[i[0]] || 0;
-          ty = vals[i[1]] || 0;
-        }
-      }
-      
-      const centerX = rect.left + rect.width / 2 - tx;
-      const centerY = rect.top + rect.height / 2 - ty;
-      
-      const viewportCenterX = window.innerWidth / 2;
-      const viewportCenterY = window.innerHeight / 2;
-      
-      setNameTransform({
-        x: viewportCenterX - centerX,
-        y: viewportCenterY - centerY
-      });
-
-      // Calculate the offset required to move each right-aligned text child
-      // to the exact center of the container.  Widths are unaffected by
-      // translate transforms, so no compensation needed.
-      const children = Array.from(el.children) as HTMLElement[];
+      // 1. Zoom to fit. Sizes are measured at the current zoom and scaled back to zoom 1.
+      const z = fitZoomRef.current;
       const isMobile = window.innerWidth < 640;
-      const maxWidth = rect.width;
+      const card = restingRect(cardWrap, section);
+      const nameChildren = Array.from(name.children) as HTMLElement[];
+      const nameWidth = Math.max(...nameChildren.map((c) => restingRect(c, section).width));
+      const buttonsWidth = buttonsRef.current ? restingRect(buttonsRef.current, section).width : 0;
+      const gap = rowRef.current ? parseFloat(getComputedStyle(rowRef.current).columnGap) || 0 : 0;
+      const contentWidth = isMobile
+        ? Math.max(card.width, nameWidth, buttonsWidth)
+        : Math.max(card.width + gap * z + nameWidth, buttonsWidth);
+      const availH = window.innerHeight - landingPadTop() - LANDING_PAD_BOTTOM;
+      const fitH = availH / (mainRect.height / z);
+      const fitW = window.innerWidth / (contentWidth / z + 48); // main has 24px side padding
+      const nextZoom = Math.max(0.4, Math.min(1, fitH, fitW));
+      if (Math.abs(nextZoom - z) > 0.005) {
+        fitZoomRef.current = nextZoom;
+        setFitZoom(nextZoom); // re-measures once the new zoom is laid out
+        return;
+      }
 
-      const offsets = children.map(child => {
-        if (isMobile) return 0;
-        const childWidth = child.getBoundingClientRect().width;
-        return (maxWidth - childWidth) / 2;
+      // 2. Card position (screen coordinates, zoom included)
+      setCardRect(card);
+
+      // 3. Move the name block's center to the viewport's center. Translations are
+      // applied inside the zoomed content, so screen distances are divided by the zoom.
+      const nameRect = restingRect(nameWrap, section);
+      setNameTransform({
+        x: (window.innerWidth / 2 - (nameRect.left + nameRect.width / 2)) / z,
+        y: (window.innerHeight / 2 - (nameRect.top + nameRect.height / 2)) / z,
       });
-      
-      setCenterOffsets(offsets);
+
+      // Shift each right-aligned line so it centers within the block
+      setCenterOffsets(nameChildren.map((child) => {
+        if (isMobile) return 0;
+        return (nameRect.width - restingRect(child, section).width) / 2 / z;
+      }));
+
+      // 4. Keep the viewer's return target current
+      const origin = pdfOriginRef.current;
+      if (origin && pdfAnimStateRef.current !== 'hidden' && origin.el.isConnected) {
+        setPdfStartRect(origin.onLanding ? restingRect(origin.el, section) : origin.el.getBoundingClientRect());
+      }
     };
-    
+
+    measureLayoutRef.current = measureLayout;
     // Ensure fonts are loaded before measuring text widths
-    measureNameCenterRef.current = updateNameCenter;
-    document.fonts.ready.then(updateNameCenter);
-    updateNameCenter();
-    window.addEventListener('resize', updateNameCenter);
-    return () => window.removeEventListener('resize', updateNameCenter);
+    document.fonts.ready.then(measureLayout);
+    measureLayout();
+    window.addEventListener('resize', measureLayout);
+    return () => window.removeEventListener('resize', measureLayout);
   }, []);
+
+  // A new zoom changes every measurement, so take them again once it's applied
+  useLayoutEffect(() => {
+    measureLayoutRef.current();
+  }, [fitZoom]);
 
   // Multi-stage orchestration from App.tsx
   useEffect(() => {
@@ -178,6 +206,7 @@ function App() {
     const ref = type === 'resume' ? resumeBtnRef : transcriptBtnRef;
     if (ref.current) {
       setPdfStartRect(ref.current.getBoundingClientRect());
+      pdfOriginRef.current = { el: ref.current, onLanding: true };
     }
     setViewerData({
       type,
@@ -188,9 +217,10 @@ function App() {
     setIsPdfOpen(true);
   };
 
-  const handleOpenCustomViewer = (data: typeof viewerData, rect: DOMRect) => {
+  const handleOpenCustomViewer = (data: typeof viewerData, rect: DOMRect, originEl?: Element) => {
     if (transitioning || isPdfOpen) return;
     setPdfStartRect(rect);
+    pdfOriginRef.current = originEl ? { el: originEl, onLanding: false } : null;
     setViewerData(data);
     setIsPdfOpen(true);
   };
@@ -211,11 +241,8 @@ function App() {
 
   function goToExperiences() {
     if (transitioning || section === 'experiences') return;
-    if (cardWrapperRef.current) {
-      setCardRect(cardWrapperRef.current.getBoundingClientRect());
-    }
-    // Re-measure right before the name animates, in case the window changed since
-    measureNameCenterRef.current();
+    // Re-measure right before the card and name animate, in case the window changed since
+    measureLayoutRef.current();
     setTransitioning(true);
     setSection('experiences');
     setTimeout(() => setTransitioning(false), 1200); // 800+400
@@ -391,8 +418,9 @@ function App() {
     >
       {/* LANDING SECTION */}
       <section
-        className="relative h-[100vh] w-full flex flex-col justify-center"
-        style={getLandingStyle()}
+        ref={sectionRef}
+        className="relative h-dvh w-full flex flex-col justify-center"
+        style={{ ...getLandingStyle(), paddingTop: landingPadTop(), paddingBottom: LANDING_PAD_BOTTOM }}
         onWheel={handleLandingWheel}
       >
         {/* WebGL parallax: fragment shader computes grid per-pixel — zero rasterization */}
@@ -404,13 +432,18 @@ function App() {
           className="absolute inset-0 pointer-events-none z-[1]"
           style={{ 
             background: 'radial-gradient(ellipse at center, transparent 0%, #262c31 75%)',
-            display: isLandingHidden ? 'none' : undefined,
+            visibility: isLandingHidden ? 'hidden' : undefined,
           }}
         />
         
-        <main className="relative z-10 w-full max-w-[1200px] mx-auto px-6 flex flex-col items-center" style={{ display: isLandingHidden ? 'none' : undefined }}>
+        {/* Hidden rather than display:none while a panel is open, so it can still be measured */}
+        <main
+          ref={mainRef}
+          className="relative z-10 w-full max-w-[1200px] mx-auto px-6 flex flex-col items-center"
+          style={{ visibility: isLandingHidden ? 'hidden' : undefined, zoom: fitZoom }}
+        >
           {/* Top layout: Card (Right) + Name (Left) */}
-          <div className="flex flex-col sm:flex-row-reverse items-center justify-center gap-12 sm:gap-24 w-full">
+          <div ref={rowRef} className="flex flex-col sm:flex-row-reverse items-center justify-center gap-12 sm:gap-24 w-full">
             {/* Right Col - Card (First in DOM so it stacks on top for mobile) */}
             <div ref={cardWrapperRef} className="flex-shrink-0 z-20">
               <div style={{ opacity: isOriginalCardVisible ? 1 : 0, transition: 'opacity 0ms' }}>
@@ -418,7 +451,8 @@ function App() {
               </div>
             </div>
 
-            {/* Left Col - Name */}
+            {/* Left Col - Name (the outer div is never transformed, so it can be measured) */}
+            <div ref={nameWrapRef} className="z-20">
             <div 
               ref={nameRef}
               className="flex flex-col items-center sm:items-end z-20"
@@ -675,10 +709,11 @@ function App() {
                 </p>
               </div>
             </div>
+            </div>
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-[16px] mt-16 z-20">
+          <div ref={buttonsRef} className="flex flex-row items-center gap-[16px] mt-16 z-20">
             <FlipButton
               ref={resumeBtnRef}
               wrapperClassName="w-auto h-auto"
@@ -704,14 +739,14 @@ function App() {
 
         {/* Scroll Indicator */}
         <div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer z-20"
-          style={{ display: isLandingHidden ? 'none' : undefined }}
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer z-20"
+          style={{ visibility: isLandingHidden ? 'hidden' : undefined }}
           onClick={goToExperiences}
         >
           <div style={{ animation: "bob 2s ease-in-out infinite" }}>
             <ChevronDown size={20} className="text-[rgba(210,220,229,0.5)]" />
           </div>
-          <span className="font-sans text-[11px] tracking-[0.12em] uppercase text-[rgba(210,220,229,0.3)]">
+          <span className="font-sans text-[11px] tracking-[0.12em] uppercase whitespace-nowrap text-[rgba(210,220,229,0.3)]">
             Scroll to view Experiences
           </span>
         </div>
@@ -721,6 +756,7 @@ function App() {
       <ExperiencesPanel 
         onClose={goToLanding} 
         cardRect={cardRect}
+        cardZoom={fitZoom}
         animState={animState}
         onOpenViewer={handleOpenCustomViewer}
         viewerOpen={pdfAnimState !== 'hidden'}

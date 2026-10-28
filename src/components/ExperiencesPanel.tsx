@@ -14,12 +14,14 @@ export type SidebarAnimState = 'hidden' | 'flight_in' | 'pausing' | 'expanding' 
 interface ExperiencesPanelProps {
   onClose: () => void;
   cardRect: DOMRect | null;
+  /** Zoom applied to the landing's ID card, so the flying copy matches it */
+  cardZoom?: number;
   animState: AnimState;
-  onOpenViewer?: (viewerData: any, startRect: DOMRect) => void;
+  onOpenViewer?: (viewerData: any, startRect: DOMRect, originEl?: Element) => void;
   viewerOpen?: boolean;
 }
 
-export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer, viewerOpen = false }: ExperiencesPanelProps) {
+export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, onOpenViewer, viewerOpen = false }: ExperiencesPanelProps) {
   const [selectedExperience, setSelectedExperience] = useState<Experience | null>(null);
   const [previousExperience, setPreviousExperience] = useState<Experience | null>(null);
   const [sidebarAnimState, setSidebarAnimState] = useState<SidebarAnimState>('hidden');
@@ -70,6 +72,28 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer, v
   };
 
   useEffect(() => clearTimers, []);
+
+  // The open sidebar takes its width from the selected list card, and flies back into it
+  // on close. After a resize, measure the card again (at the list's unscaled size).
+  useEffect(() => {
+    if (!selectedExperience || sidebarAnimState !== 'open') return;
+    const onResize = () => {
+      const el = document.getElementById(`exp-card-${selectedExperience.id}`)?.firstElementChild;
+      const listWrapper = document.getElementById('list-column-wrapper');
+      if (!el || !listWrapper) return;
+      const oldTransform = listWrapper.style.transform;
+      const oldTransition = listWrapper.style.transition;
+      listWrapper.style.transition = 'none';
+      listWrapper.style.transform = 'scale(1)';
+      const rect = el.getBoundingClientRect();
+      listWrapper.style.transform = oldTransform;
+      listWrapper.style.transition = oldTransition;
+      setTargetRect(rect);
+      setTargetRectScaled(null);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [selectedExperience, sidebarAnimState]);
 
   const filteredExperiences = EXPERIENCES.filter((exp) => {
     if (skillFilter.length > 0 && !skillFilter.some((s) => exp.skills.includes(s))) return false;
@@ -341,7 +365,9 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer, v
           display: animState === 'hidden' ? 'none' : undefined,
         }}
       >
-        <IDCard interactive={false} />
+        <div style={{ zoom: cardZoom }}>
+          <IDCard interactive={false} />
+        </div>
       </div>
 
       {/* BACK FACE (Experiences Panel) */}
@@ -377,7 +403,7 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer, v
             {/* Top Bar */}
             <div
               className={cn(
-                "absolute top-0 left-0 right-0 h-[60px] z-10 flex items-center px-6",
+                "absolute top-0 left-0 right-0 h-[60px] z-10 flex items-center px-4 sm:px-6",
                 "bg-[rgba(38,44,49,0.5)] backdrop-blur-[12px] border-b border-[rgba(54,62,69,0.8)]",
                 "transition-opacity duration-300"
               )}
@@ -388,11 +414,12 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer, v
                 display: showContents ? undefined : 'none',
               }}
             >
-          <div className="flex-1">
-            <h2 className="font-sans text-[18px] font-bold text-[#D2DCE5]">Experiences</h2>
+          {/* The title gives way to the filters on narrow screens */}
+          <div className="flex-1 min-w-0">
+            <h2 className="hidden min-[440px]:block truncate font-sans text-[18px] font-bold text-[#D2DCE5]">Experiences</h2>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <MultiSelectDropdown
               label="Skill"
               options={ALL_SKILLS}
@@ -406,7 +433,7 @@ export function ExperiencesPanel({ onClose, cardRect, animState, onOpenViewer, v
               onChange={setTypeFilter}
             />
 
-            <div className="w-[1px] h-6 bg-[rgba(54,62,69,0.8)] mx-2" />
+            <div className="hidden sm:block w-[1px] h-6 bg-[rgba(54,62,69,0.8)] mx-2" />
 
             <button
               onClick={onClose}

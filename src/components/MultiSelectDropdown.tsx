@@ -67,7 +67,7 @@ export function MultiSelectDropdown({ label, options, values, onChange }: MultiS
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-2 min-w-[180px] origin-top bg-[#2E353B] border border-[rgba(54,62,69,1)] rounded-[10px] overflow-hidden"
+          className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 min-w-[180px] max-h-[calc(100dvh-80px)] overflow-y-auto minimal-scrollbar origin-top bg-[#2E353B] border border-[rgba(54,62,69,1)] rounded-[10px]"
           style={{
             boxShadow: "0 2px 6px rgba(0,0,0,0.18)",
             animation: "dropdown-enter 150ms ease-out forwards",

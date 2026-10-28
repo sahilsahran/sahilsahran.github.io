@@ -17,7 +17,7 @@ interface ExperienceSidebarProps {
   hasNext?: boolean;
   isListScaledDown?: boolean;
   zIndex?: number;
-  onOpenViewer?: (viewerData: any, startRect: DOMRect) => void;
+  onOpenViewer?: (viewerData: any, startRect: DOMRect, originEl?: Element) => void;
   /** 1-based position of this experience in the filtered list, and the list length */
   position?: number;
   total?: number;
@@ -61,7 +61,7 @@ export function ExperienceSidebar({
       fileType: activeFile.type,
       gallery: experience?.files,
       index: experience?.files.findIndex((f) => f.path === activeFile.path),
-    }, rect);
+    }, rect, previewBoxRef.current);
   };
 
   // Left/right arrow keys cycle experiences while this panel is open
