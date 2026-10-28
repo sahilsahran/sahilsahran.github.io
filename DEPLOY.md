@@ -16,7 +16,7 @@ and deployed automatically by a GitHub Actions workflow on every push to `master
 
 | | |
 |---|---|
-| Repository | `Cubeian/port-2-0` (GitHub), default branch `master` |
+| Repository | `sahilsahran/port-2-0` (GitHub), default branch `master`. The account was renamed from `Cubeian` to `sahilsahran` on 2026-10-28 |
 | Local copy | `C:\Documents\Projects\port-2-0` on Sahil's Windows PC |
 | Stack | Vite 8, React 19, TypeScript, Tailwind v4. No router (one page), so no SPA 404 fallback is needed |
 | Build | `npm ci` then `npm run build` (runs `tsc -b && vite build`), output in `dist/` |
@@ -39,6 +39,19 @@ Absolute paths into `public/` that the site uses today:
 
 ## Step 1: Get the code onto GitHub
 
+First, point the local repo at the renamed account. GitHub redirects the old `Cubeian` URLs
+for now, but don't rely on that:
+
+```sh
+git remote -v
+git remote set-url origin https://github.com/sahilsahran/port-2-0.git
+git fetch origin
+```
+
+Sahil's internship repo on the same PC (`C:\Documents\Projects\internshipFinder`) moved
+too. Update it the same way:
+`git remote set-url origin https://github.com/sahilsahran/internshipFinder.git`.
+
 Sahil's latest work is only on their PC and is not committed yet.
 
 1. Run `git status` in the local copy and show Sahil a short summary of what's changed.
@@ -58,15 +71,15 @@ Sahil's latest work is only on their PC and is not committed yet.
 ## Step 2: Choose the site address (ask Sahil)
 
 A GitHub Pages site for a repo named `port-2-0` lives at
-`https://cubeian.github.io/port-2-0/`. That subfolder breaks every absolute path above.
+`https://sahilsahran.github.io/port-2-0/`. That subfolder breaks every absolute path above.
 There are two ways to handle it. Ask Sahil which one they want:
 
-**A. Rename the repo to `Cubeian.github.io` (recommended, simplest).**
-- The site lives at `https://cubeian.github.io/`, and no code changes are needed (`base` stays `/`).
+**A. Rename the repo to `sahilsahran.github.io` (recommended, simplest).**
+- The site lives at `https://sahilsahran.github.io/`, and no code changes are needed (`base` stays `/`).
 - Sahil renames it under the repo's Settings > General > Repository name. GitHub redirects the old URL.
 - Afterwards, update the local remote:
-  `git remote set-url origin https://github.com/Cubeian/Cubeian.github.io.git`
-- Check first that Sahil doesn't already have a `Cubeian.github.io` repo.
+  `git remote set-url origin https://github.com/sahilsahran/sahilsahran.github.io.git`
+- Check first that Sahil doesn't already have a `sahilsahran.github.io` repo. The repo name must match the account name exactly.
 
 **B. Keep the name `port-2-0`.**
 1. In `vite.config.ts`, set `base: '/port-2-0/'`.
