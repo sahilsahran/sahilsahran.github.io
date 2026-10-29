@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { readColorToken } from '@/lib/theme';
 
 interface ParallaxGridProps {
   visible: boolean;
@@ -16,15 +17,15 @@ const FRAGMENT_SHADER = /* glsl */ `
   precision mediump float;
   uniform vec2  u_resolution;
   uniform float u_offset;
+  uniform vec3  u_line;   // --c-grid
+  uniform vec3  u_bg;     // --c-bg
 
   void main() {
     vec2 px = gl_FragCoord.xy;
     vec2 shifted = vec2(px.x + u_offset, px.y);
     vec2 cell = fract(shifted / 40.0) * 40.0;
     float line = step(39.0, cell.x) + step(39.0, cell.y);
-    vec3 lineColor = vec3(0.102, 0.133, 0.153); // #1a2227
-    vec3 pageBg    = vec3(0.149, 0.173, 0.192); // #262C31
-    gl_FragColor = vec4(mix(pageBg, lineColor, clamp(line, 0.0, 1.0)), 1.0);
+    gl_FragColor = vec4(mix(u_bg, u_line, clamp(line, 0.0, 1.0)), 1.0);
   }
 `;
 
@@ -83,6 +84,8 @@ function initWebGL(canvas: HTMLCanvasElement): WebGLRenderingContext | null {
   (gl as any).__prog = prog;
   (gl as any).__uRes = gl.getUniformLocation(prog, 'u_resolution');
   (gl as any).__uOff = gl.getUniformLocation(prog, 'u_offset');
+  (gl as any).__uLine = gl.getUniformLocation(prog, 'u_line');
+  (gl as any).__uBg = gl.getUniformLocation(prog, 'u_bg');
 
   return gl;
 }
@@ -101,8 +104,7 @@ export function ParallaxGrid({ visible, paused = false }: ParallaxGridProps) {
 
     const gl = initWebGL(canvas);
     if (!gl) {
-      canvas.style.backgroundColor = '#262c31';
-      return;
+      return; // the canvas's CSS background shows instead
     }
     glRef.current = gl;
 
@@ -154,6 +156,9 @@ export function ParallaxGrid({ visible, paused = false }: ParallaxGridProps) {
       const uOff = (gl as any).__uOff;
       gl.uniform2f(uRes, canvas.width, canvas.height);
       gl.uniform1f(uOff, offset);
+      // Colors follow the active theme (cheap to read at this frame rate)
+      gl.uniform3fv((gl as any).__uLine, readColorToken('grid'));
+      gl.uniform3fv((gl as any).__uBg, readColorToken('bg'));
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     };
 
@@ -173,7 +178,7 @@ export function ParallaxGrid({ visible, paused = false }: ParallaxGridProps) {
         display: visible ? 'block' : 'none',
         width: '100%',
         height: '100%',
-        backgroundColor: '#262c31',
+        backgroundColor: 'rgb(var(--c-bg))',
       }}
     />
   );

@@ -5,6 +5,7 @@ import { IDCard } from "@/components/IDCard";
 import { ExperiencesPanel } from "@/components/ExperiencesPanel";
 import { FlipButton } from "@/components/ui/FlipButton";
 import { PDFViewerPanel, type ViewerData } from "@/components/PDFViewerPanel";
+import { applyTheme, getInitialTheme } from "@/lib/theme";
 
 export type AnimState = 'hidden' | 'flipping_in' | 'expanding' | 'open' | 'collapsing' | 'flipping_out';
 export type PdfAnimState = 'hidden' | 'flipping_in' | 'expanding' | 'open' | 'collapsing' | 'flipping_out';
@@ -27,6 +28,7 @@ function restingRect(el: Element, section: Element): DOMRect {
 
 function App() {
   const [section, setSection] = useState<'landing' | 'experiences'>('landing');
+  useEffect(() => applyTheme(getInitialTheme()), []);
   const [transitioning, setTransitioning] = useState(false);
   const cardWrapperRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLDivElement>(null);
@@ -431,7 +433,7 @@ function App() {
         <div 
           className="absolute inset-0 pointer-events-none z-[1]"
           style={{ 
-            background: 'radial-gradient(ellipse at center, transparent 0%, #262c31 75%)',
+            background: 'radial-gradient(ellipse at center, transparent 0%, rgb(var(--c-bg)) 75%)',
             visibility: isLandingHidden ? 'hidden' : undefined,
           }}
         />
@@ -490,7 +492,7 @@ function App() {
                     className="absolute top-[20px] left-0 w-full h-full font-sans font-[800] uppercase text-transparent leading-[0.92] tracking-[-0.02em] pointer-events-none transition-opacity duration-500 group-hover:opacity-10"
                     style={{ 
                       fontSize: "clamp(5rem, 9vw, 9rem)",
-                      textShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                      textShadow: '0 20px 40px rgb(var(--c-shadow)/calc(0.5*var(--shadow)))',
                       transform: 'translateZ(-50px)',
                     }}
                   >
@@ -509,7 +511,7 @@ function App() {
                     </h1>
 
                     <h1 
-                      className="absolute inset-0 font-sans font-[800] uppercase text-[#D2DCE5] leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                      className="absolute inset-0 font-sans font-[800] uppercase text-[rgb(var(--c-text))] leading-[0.92] tracking-[-0.02em] pointer-events-none"
                       style={{ fontSize: "clamp(5rem, 9vw, 9rem)", transform: 'translateZ(0px)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
                     >
                       SAHIL
@@ -521,8 +523,8 @@ function App() {
                       style={{
                         fontSize: "clamp(5rem, 9vw, 9rem)",
                         transform: 'rotateX(180deg) translateZ(0px)',
-                        color: '#A4C6D3',
-                        textShadow: '0 0 2px rgba(46,53,59,0.6), 0 0 8px rgba(46,53,59,0.3), 0 2px 4px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.1)',
+                        color: 'rgb(var(--c-accent-2))',
+                        textShadow: '0 0 2px rgb(var(--c-surface)/0.6), 0 0 8px rgb(var(--c-surface)/0.3), 0 2px 4px rgb(var(--c-shadow)/calc(0.3*var(--shadow))), 0 4px 8px rgb(var(--c-shadow)/calc(0.2*var(--shadow))), 0 8px 16px rgb(var(--c-shadow)/calc(0.1*var(--shadow)))',
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
                       }}
@@ -537,8 +539,8 @@ function App() {
                         style={{
                           fontSize: "clamp(5rem, 9vw, 9rem)",
                           transform: `translateZ(${z}px)`,
-                          textShadow: '0 0 1px rgba(46,53,59,0.5), 0 2px 4px rgba(0,0,0,0.25)',
-                          color: z === -20 ? '#A4C6D3' : '#4B6376',
+                          textShadow: '0 0 1px rgb(var(--c-surface)/0.5), 0 2px 4px rgb(var(--c-shadow)/calc(0.25*var(--shadow)))',
+                          color: z === -20 ? 'rgb(var(--c-accent-2))' : 'rgb(var(--c-depth))',
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
                         }}
@@ -554,7 +556,7 @@ function App() {
                           style={{
                             fontSize: "clamp(5rem, 9vw, 9rem)",
                             transform: `translateZ(${z}px)`,
-                            color: '#4B6376',
+                            color: 'rgb(var(--c-depth))',
                             backfaceVisibility: 'hidden',
                             WebkitBackfaceVisibility: 'hidden',
                           }}
@@ -570,7 +572,7 @@ function App() {
                         style={{
                           fontSize: "clamp(5rem, 9vw, 9rem)",
                           transform: `rotateX(180deg) translateZ(-${z}px)`,
-                          color: z === 12 ? '#A4C6D3' : '#4B6376',
+                          color: z === 12 ? 'rgb(var(--c-accent-2))' : 'rgb(var(--c-depth))',
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
                         }}
@@ -608,7 +610,7 @@ function App() {
                     className="absolute top-[20px] left-0 w-full h-full font-sans font-[800] uppercase text-transparent leading-[0.92] tracking-[-0.02em] pointer-events-none transition-opacity duration-500 group-hover:opacity-10"
                     style={{ 
                       fontSize: "clamp(5rem, 9vw, 9rem)",
-                      textShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                      textShadow: '0 20px 40px rgb(var(--c-shadow)/calc(0.5*var(--shadow)))',
                       transform: 'translateZ(-50px)',
                     }}
                   >
@@ -627,7 +629,7 @@ function App() {
                     </h1>
 
                     <h1 
-                      className="absolute inset-0 font-sans font-[800] uppercase text-[#D2DCE5] leading-[0.92] tracking-[-0.02em] pointer-events-none"
+                      className="absolute inset-0 font-sans font-[800] uppercase text-[rgb(var(--c-text))] leading-[0.92] tracking-[-0.02em] pointer-events-none"
                       style={{ fontSize: "clamp(5rem, 9vw, 9rem)", transform: 'translateZ(0px)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
                     >
                       SAHRAN
@@ -639,8 +641,8 @@ function App() {
                       style={{
                         fontSize: "clamp(5rem, 9vw, 9rem)",
                         transform: 'rotateX(180deg) translateZ(0px)',
-                        color: '#A4C6D3',
-                        textShadow: '0 0 2px rgba(46,53,59,0.6), 0 0 8px rgba(46,53,59,0.3), 0 2px 4px rgba(0,0,0,0.3), 0 4px 8px rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.1)',
+                        color: 'rgb(var(--c-accent-2))',
+                        textShadow: '0 0 2px rgb(var(--c-surface)/0.6), 0 0 8px rgb(var(--c-surface)/0.3), 0 2px 4px rgb(var(--c-shadow)/calc(0.3*var(--shadow))), 0 4px 8px rgb(var(--c-shadow)/calc(0.2*var(--shadow))), 0 8px 16px rgb(var(--c-shadow)/calc(0.1*var(--shadow)))',
                         backfaceVisibility: 'hidden',
                         WebkitBackfaceVisibility: 'hidden',
                       }}
@@ -655,8 +657,8 @@ function App() {
                         style={{
                           fontSize: "clamp(5rem, 9vw, 9rem)",
                           transform: `translateZ(${z}px)`,
-                          textShadow: '0 0 1px rgba(46,53,59,0.5), 0 2px 4px rgba(0,0,0,0.25)',
-                          color: z === -20 ? '#A4C6D3' : '#4B6376',
+                          textShadow: '0 0 1px rgb(var(--c-surface)/0.5), 0 2px 4px rgb(var(--c-shadow)/calc(0.25*var(--shadow)))',
+                          color: z === -20 ? 'rgb(var(--c-accent-2))' : 'rgb(var(--c-depth))',
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
                         }}
@@ -672,7 +674,7 @@ function App() {
                           style={{
                             fontSize: "clamp(5rem, 9vw, 9rem)",
                             transform: `translateZ(${z}px)`,
-                            color: '#4B6376',
+                            color: 'rgb(var(--c-depth))',
                             backfaceVisibility: 'hidden',
                             WebkitBackfaceVisibility: 'hidden',
                           }}
@@ -688,7 +690,7 @@ function App() {
                         style={{
                           fontSize: "clamp(5rem, 9vw, 9rem)",
                           transform: `rotateX(180deg) translateZ(-${z}px)`,
-                          color: z === 12 ? '#A4C6D3' : '#4B6376',
+                          color: z === 12 ? 'rgb(var(--c-accent-2))' : 'rgb(var(--c-depth))',
                           backfaceVisibility: 'hidden',
                           WebkitBackfaceVisibility: 'hidden',
                         }}
@@ -704,7 +706,7 @@ function App() {
                 transform: ['flipping_in', 'expanding', 'open', 'collapsing'].includes(animState) ? `translateX(-${centerOffsets[2] || 0}px)` : 'translateX(0px)',
                 transition: `transform 800ms ${animState === 'flipping_out' || animState === 'hidden' ? 'cubic-bezier(0.5, 0, 0.2, 1)' : 'cubic-bezier(0.25, 1, 0.5, 1)'}`,
               }}>
-                <p className="font-sans font-normal text-[clamp(1rem,1.5vw,1.25rem)] text-[rgba(164,198,211,0.7)] tracking-[0.05em]">
+                <p className="font-sans font-normal text-[clamp(1rem,1.5vw,1.25rem)] text-[rgb(var(--c-accent-2)/0.7)] tracking-[0.05em]">
                   Electrical Engineering · University of Toronto
                 </p>
               </div>
@@ -744,9 +746,9 @@ function App() {
           onClick={goToExperiences}
         >
           <div style={{ animation: "bob 2s ease-in-out infinite" }}>
-            <ChevronDown size={20} className="text-[rgba(210,220,229,0.5)]" />
+            <ChevronDown size={20} className="text-[rgb(var(--c-text)/0.5)]" />
           </div>
-          <span className="font-sans text-[11px] tracking-[0.12em] uppercase whitespace-nowrap text-[rgba(210,220,229,0.3)]">
+          <span className="font-sans text-[11px] tracking-[0.12em] uppercase whitespace-nowrap text-[rgb(var(--c-text)/0.3)]">
             Scroll to view Experiences
           </span>
         </div>

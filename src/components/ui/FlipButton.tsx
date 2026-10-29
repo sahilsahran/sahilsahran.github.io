@@ -6,7 +6,7 @@ export interface FlipButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   wrapperClassName?: string;
   frontClassName?: string;
   backClassName?: string;
-  /** Shadow on both faces; defaults to the large landing-page shadow */
+  /** Shadow on both faces; defaults to the landing-page shadow */
   faceShadow?: string;
 }
 
@@ -49,7 +49,7 @@ export const FlipButton = React.forwardRef<HTMLButtonElement, FlipButtonProps>(
             style={{ 
               backfaceVisibility: 'hidden', 
               WebkitBackfaceVisibility: 'hidden',
-              boxShadow: faceShadow ?? '0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05)'
+              boxShadow: faceShadow ?? '0 12px 24px -8px rgb(var(--c-shadow)/calc(0.6*var(--shadow))), 0 4px 8px -2px rgb(var(--c-shadow)/calc(0.4*var(--shadow))), 0 0 0 1px rgb(var(--c-accent)/0.05)'
             }}
           >
             {children}
@@ -66,7 +66,7 @@ export const FlipButton = React.forwardRef<HTMLButtonElement, FlipButtonProps>(
               backfaceVisibility: 'hidden', 
               WebkitBackfaceVisibility: 'hidden',
               transform: 'rotateX(180deg)',
-              boxShadow: faceShadow ?? '0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05)'
+              boxShadow: faceShadow ?? '0 12px 24px -8px rgb(var(--c-shadow)/calc(0.6*var(--shadow))), 0 4px 8px -2px rgb(var(--c-shadow)/calc(0.4*var(--shadow))), 0 0 0 1px rgb(var(--c-accent)/0.05)'
             }}
           >
             {children}

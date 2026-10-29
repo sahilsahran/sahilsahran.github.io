@@ -9,6 +9,22 @@ import { IDCard } from "./IDCard";
 import { ExperienceCard } from "./ExperienceCard";
 import type { AnimState } from "../App";
 
+// Scrolling past either end of the list stretches it like a rubber band (Apple's
+// rubber-band curve), and it springs back the moment they let go. Pulling the list far
+// enough down past the top leaves the page, but only with a scroll that started at the
+// top: trackpad coasting and scrolls that began further down can't do it
+const RUBBER_COEFF = 0.55;         // Apple UIScrollView rubber-band resistance
+const EXIT_THRESHOLD = 110;        // px the list must visibly stretch down to leave the page
+const MAX_BOTTOM_STRETCH = 35;     // px the list can stretch up past the bottom
+const TRACKPAD_STEP_MAX = 60;      // px of pull one trackpad event can add, so it's about distance, not speed
+const WHEEL_NOTCH_PULL = 62;       // px of pull one mouse-wheel notch adds
+const FOLLOW_MS = 30;              // how quickly the stretch catches up with the pull
+const MAX_RISE = 0.5;              // px/ms; however hard they swipe, leaving takes a visible pull
+const SPRING_K = 320;              // spring-back stiffness
+const SPRING_C = 32;               // spring-back damping
+const RELEASE_IDLE_MS = 90;        // without a finger-up signal, this much silence means they let go
+const GESTURE_GAP_MS = 200;        // a pause this long between wheel events starts a new gesture
+
 export type SidebarAnimState = 'hidden' | 'flight_in' | 'pausing' | 'expanding' | 'open' | 'fading_out' | 'collapsing' | 'flight_out';
 
 interface ExperiencesPanelProps {
@@ -40,6 +56,38 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
   const [typeFilter, setTypeFilter] = useState("All");
 
   const listRef = useRef<HTMLDivElement>(null);
+  const listContentRef = useRef<HTMLDivElement>(null);
+  const hintRef = useRef<HTMLSpanElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // The band: pull is the scrolling taken past the edge (+ top, - bottom), shown is how
+  // far the list is drawn stretched
+  const stretch = useRef({
+    pull: 0,
+    shown: 0,
+    velocity: 0,     // px/s, while springing back
+    frame: 0,        // rAF handle
+    lastTime: 0,
+    mode: 'idle' as 'idle' | 'pulling' | 'returning',
+    canLeave: false,
+    releaseTimer: null as ReturnType<typeof setTimeout> | null,
+  });
+  // The wheel gesture in progress (see readGesture)
+  const gesture = useRef({
+    last: 0,
+    lastSize: 0,
+    startedAtTop: false,
+    momentum: false,
+    liftedFinger: false,
+    coasted: 0,           // coasting events since the finger lifted
+    sendsFingerUp: false, // this touchpad reports finger lifts (Windows precision touchpads)
+    dir: 0,
+    merged: [] as number[][],
+    mergedAt: 0,
+    velocity: 0,
+    decels: [] as number[],
+  });
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // Sidebar animations are timer-driven. Track every timer so a reset can cancel it,
   // and lock out new selections until the current animation finishes. A click made
@@ -101,23 +149,297 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
     return true;
   });
 
-  const handlePanelWheel = (e: React.WheelEvent) => {
-    if (e.deltaY < 0 && listRef.current?.scrollTop === 0 && sidebarAnimState === 'hidden' && prevSidebarAnimState === 'hidden') {
-      onClose();
-    }
+  const getDimension = () => listRef.current?.clientHeight || window.innerHeight || 800;
+
+  // Apple UIScrollView rubber-band resistance formula
+  const rubberBand = (rawPx: number, dimension: number) => {
+    const sign = Math.sign(rawPx);
+    const abs = Math.abs(rawPx);
+    return sign * dimension * (1 - 1 / ((abs * RUBBER_COEFF) / dimension + 1));
   };
 
-  const handleListWheel = (e: React.WheelEvent) => {
-    if (listRef.current) {
-      if (!(e.deltaY < 0 && listRef.current.scrollTop === 0)) {
-        e.stopPropagation();
+  // Inverse rubber-band mapping: calculates raw scroll travel from visible stretch
+  const pullFor = (stretchPx: number, dimension: number) => {
+    const sign = Math.sign(stretchPx);
+    const abs = Math.min(Math.abs(stretchPx), dimension * 0.95);
+    return sign * (dimension / RUBBER_COEFF) * (1 / (1 - abs / dimension) - 1);
+  };
+
+  const drawStretch = (y: number) => {
+    const content = listContentRef.current;
+    if (content) {
+      content.style.transform = y ? `translate3d(0, ${y}px, 0)` : '';
+    }
+    const hint = hintRef.current;
+    if (hint) {
+      if (y > 0) {
+        const progress = Math.min(y / EXIT_THRESHOLD, 1);
+        hint.style.transform = `translate3d(0, ${y * 0.4}px, 0) scale(${1 + 0.3 * progress})`;
+        hint.style.color = `rgb(var(--c-text) / ${0.25 + 0.75 * progress})`;
+      } else {
+        hint.style.transform = '';
+        hint.style.color = '';
       }
     }
   };
 
+  const resetStretch = () => {
+    const st = stretch.current;
+    cancelAnimationFrame(st.frame);
+    if (st.releaseTimer) clearTimeout(st.releaseTimer);
+    Object.assign(st, { pull: 0, shown: 0, velocity: 0, frame: 0, mode: 'idle', releaseTimer: null });
+    drawStretch(0);
+    if (listContentRef.current) listContentRef.current.style.willChange = '';
+  };
+
+  // One loop drives the stretch: while pulling it eases toward the pull (so separate
+  // wheel notches blend into one motion); once released it springs back to 0
+  const runStretch = () => {
+    const st = stretch.current;
+    if (st.frame) return;
+    st.lastTime = performance.now();
+    if (listContentRef.current) listContentRef.current.style.willChange = 'transform';
+    const step = (now: number) => {
+      const dtMs = Math.min(now - st.lastTime, 32);
+      st.lastTime = now;
+      const dim = getDimension();
+      if (st.mode === 'pulling') {
+        const target = rubberBand(st.pull, dim);
+        st.shown += Math.min((target - st.shown) * (1 - Math.exp(-dtMs / FOLLOW_MS)), MAX_RISE * dtMs);
+        if (st.canLeave && st.shown >= EXIT_THRESHOLD) {
+          resetStretch();
+          onCloseRef.current();
+          return;
+        }
+      } else {
+        // Damped spring back to 0: F = -k*x - c*v
+        const dt = dtMs / 1000;
+        st.velocity += (-SPRING_K * st.shown - SPRING_C * st.velocity) * dt;
+        st.shown += st.velocity * dt;
+        st.pull = pullFor(st.shown, dim);
+        if (Math.abs(st.shown) < 0.3 && Math.abs(st.velocity) < 15) {
+          resetStretch();
+          return;
+        }
+      }
+      drawStretch(st.shown);
+      st.frame = requestAnimationFrame(step);
+    };
+    st.frame = requestAnimationFrame(step);
+  };
+
+  // They let go: spring back from wherever the list is now. If they already pulled far
+  // enough (a quick swipe can get there before the stretch catches up), let the stretch
+  // finish playing out and leave instead
+  const releaseStretch = () => {
+    const st = stretch.current;
+    if (st.releaseTimer) clearTimeout(st.releaseTimer);
+    st.releaseTimer = null;
+    if (st.mode !== 'pulling') return;
+    if (st.canLeave && st.pull > 0 && rubberBand(st.pull, getDimension()) >= EXIT_THRESHOLD) return;
+    st.mode = 'returning';
+    st.velocity = 0;
+    runStretch();
+  };
+
+  // Move the band by px of pull (+ stretches past the top, - past the bottom)
+  const pullStretch = (px: number) => {
+    const st = stretch.current;
+    const dim = getDimension();
+    if (st.mode === 'returning') st.velocity = 0;
+    st.mode = 'pulling';
+    const wasTop = st.pull > 0 || (st.pull === 0 && px > 0);
+    st.pull += px;
+    if (wasTop) {
+      // A scroll that started down in the list can stretch the band but never break it
+      st.pull = Math.max(0, Math.min(st.pull, st.canLeave ? Infinity : pullFor(EXIT_THRESHOLD * 0.8, dim)));
+    } else {
+      st.pull = Math.min(0, Math.max(st.pull, pullFor(-MAX_BOTTOM_STRETCH, dim)));
+    }
+    // Without a finger-up signal (mouse wheels, Macs), a short silence means they let go
+    if (st.releaseTimer) clearTimeout(st.releaseTimer);
+    st.releaseTimer = setTimeout(releaseStretch, RELEASE_IDLE_MS);
+    runStretch();
+  };
+
+  const wheelPx = (e: WheelEvent) =>
+    e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * window.innerHeight : e.deltaY;
+
+  // Works out what each wheel event is, the way the wheel-gestures library does:
+  // - a new gesture starts after a pause, or when a strong push interrupts coasting
+  // - Windows precision touchpads send an empty event the moment the finger lifts, and
+  //   everything after it is coasting until a pause or a clearly new swipe (coasting
+  //   often starts bigger than the last finger movement, so the first few don't count)
+  // - elsewhere, a steady deceleration means coasting. A touchpad that sends finger-up
+  //   events doesn't need this guess, and slowing down mid-swipe would trip it
+  // - coasting never changes direction, so a reversal is always the finger
+  // Coasting (momentum) only ever scrolls the list, never pulls the band
+  const readGesture = (e: WheelEvent, dy: number, list: HTMLElement) => {
+    const g = gesture.current;
+    const now = performance.now();
+    const size = Math.abs(dy);
+    const newGesture = () => {
+      Object.assign(g, { momentum: false, liftedFinger: false, coasted: 0, merged: [] as number[][], mergedAt: 0, velocity: 0, decels: [] as number[] });
+      g.startedAtTop = list.scrollTop <= 0;
+    };
+    const gap = now - g.last;
+    const dir = Math.sign(dy);
+    if (gap > GESTURE_GAP_MS || (g.liftedFinger && gap > 100)) newGesture();
+    else if (dir && g.dir && dir !== g.dir) newGesture();
+    else if (g.momentum && !g.liftedFinger && size > Math.max(2, g.lastSize * 2)) newGesture();
+    // A swipe that interrupts coasting jumps well above the shrinking coasting deltas
+    else if (g.liftedFinger && g.coasted >= 3 && size >= 4 && size > g.lastSize * 2.5) newGesture();
+    g.last = now;
+
+    const fingerUp = e.deltaY === 0 && e.deltaX === 0;
+    if (fingerUp) {
+      g.momentum = true;
+      g.liftedFinger = true;
+      g.sendsFingerUp = true;
+      return { fingerUp, isNotch: false };
+    }
+    if (dir) g.dir = dir;
+    if (g.liftedFinger) g.coasted++;
+    // A mouse wheel notch: a whole multiple of the browser's notch size
+    const notch = 100 * (window.devicePixelRatio || 1);
+    const isNotch = e.deltaMode === 1 || (size >= 50 && (size % notch === 0 || size % 120 === 0));
+    g.lastSize = size;
+
+    // Merge events in pairs, then compare speeds: three decelerations in a row in the
+    // range real coasting uses (each pair 4% to 40% slower) means momentum
+    g.merged.push([size, now]);
+    if (g.merged.length === 2) {
+      const t = (g.merged[0][1] + g.merged[1][1]) / 2;
+      const sum = g.merged[0][0] + g.merged[1][0];
+      if (g.mergedAt && t > g.mergedAt) {
+        const v = sum / (t - g.mergedAt);
+        if (g.velocity) g.decels = [...g.decels.slice(-2), v / g.velocity];
+        g.velocity = v;
+      }
+      g.mergedAt = t;
+      g.merged = [];
+      if (!isNotch && !g.sendsFingerUp && g.decels.length === 3 && g.decels.every((f) => f >= 0.6 && f <= 0.96)) g.momentum = true;
+    }
+    return { fingerUp, isNotch };
+  };
+
+  // A native (non-passive) listener, so the list can be held still while the band is
+  // stretched, the way native overscroll works
+  const handleWheel = (e: WheelEvent) => {
+    const list = listRef.current;
+    if (!list || sidebarAnimState !== 'hidden' || prevSidebarAnimState !== 'hidden') return;
+    // Sub-scrollers (e.g. dropdown menus) handle their own scrolling
+    const otherScroller = (e.target as Element).closest?.('.overflow-y-auto');
+    if (otherScroller && otherScroller !== list) return;
+
+    const st = stretch.current;
+    const dy = wheelPx(e);
+    const { fingerUp, isNotch } = readGesture(e, dy, list);
+    const stretched = st.mode !== 'idle';
+
+    if (fingerUp || gesture.current.momentum) {
+      if (stretched) {
+        e.preventDefault();
+        releaseStretch();
+      }
+      return;
+    }
+
+    // Distance, not speed: each event can only pull so far
+    const step = isNotch ? WHEEL_NOTCH_PULL * Math.sign(dy) : Math.sign(dy) * Math.min(Math.abs(dy), TRACKPAD_STEP_MAX);
+
+    // While stretched, scrolling back the other way relaxes the band first
+    if ((st.pull > 0 && dy > 0) || (st.pull < 0 && dy < 0)) {
+      e.preventDefault();
+      const relaxed = st.pull - step;
+      pullStretch(Math.sign(st.pull) === Math.sign(relaxed) ? -step : -st.pull);
+      return;
+    }
+
+    const atTop = list.scrollTop <= 0;
+    const atBottom = list.scrollTop >= list.scrollHeight - list.clientHeight - 1;
+    if (dy < 0 && (atTop || st.pull > 0)) {
+      e.preventDefault();
+      if (st.pull <= 0) st.canLeave = gesture.current.startedAtTop;
+      pullStretch(-step);
+    } else if (dy > 0 && list.contains(e.target as Node) && (atBottom || st.pull < 0)) {
+      e.preventDefault();
+      pullStretch(-step * 0.4);
+    }
+  };
+  const handleWheelRef = useRef(handleWheel);
+  handleWheelRef.current = handleWheel;
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const onWheel = (e: WheelEvent) => handleWheelRef.current(e);
+    panel.addEventListener('wheel', onWheel, { passive: false });
+    return () => panel.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Touch: the band follows the finger and springs back when it lifts
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    let lastY = 0;
+    let tracking = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (sidebarAnimState !== 'hidden' || prevSidebarAnimState !== 'hidden' || e.touches.length !== 1) return;
+      lastY = e.touches[0].clientY;
+      tracking = true;
+      stretch.current.canLeave = list.scrollTop <= 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!tracking || e.touches.length !== 1) return;
+      const y = e.touches[0].clientY;
+      const dy = y - lastY;
+      lastY = y;
+      const st = stretch.current;
+      const atTop = list.scrollTop <= 0;
+      const atBottom = list.scrollTop >= list.scrollHeight - list.clientHeight - 1;
+      if ((atTop && dy > 0) || st.pull > 0) {
+        if (e.cancelable) e.preventDefault();
+        pullStretch(st.pull + dy > 0 ? dy : -st.pull);
+      } else if ((atBottom && dy < 0) || st.pull < 0) {
+        if (e.cancelable) e.preventDefault();
+        pullStretch(st.pull + dy < 0 ? dy : -st.pull);
+      }
+      // The finger is still down, so don't let the idle timer release the band
+      if (st.releaseTimer) clearTimeout(st.releaseTimer);
+      st.releaseTimer = null;
+    };
+    const onTouchEnd = () => {
+      if (!tracking) return;
+      tracking = false;
+      releaseStretch();
+    };
+
+    list.addEventListener('touchstart', onTouchStart, { passive: true });
+    list.addEventListener('touchmove', onTouchMove, { passive: false });
+    list.addEventListener('touchend', onTouchEnd, { passive: true });
+    list.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    return () => {
+      list.removeEventListener('touchstart', onTouchStart);
+      list.removeEventListener('touchmove', onTouchMove);
+      list.removeEventListener('touchend', onTouchEnd);
+      list.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [sidebarAnimState, prevSidebarAnimState]);
+
+  useEffect(() => {
+    const st = stretch.current;
+    return () => {
+      cancelAnimationFrame(st.frame);
+      if (st.releaseTimer) clearTimeout(st.releaseTimer);
+    };
+  }, []);
+
   useEffect(() => {
     if (animState === 'hidden') {
       clearTimers();
+      resetStretch();
       setSelectedExperience(null);
       setPreviousExperience(null);
       setSidebarAnimState('hidden');
@@ -303,7 +625,7 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
           borderRadius: "16px",
           transition: "none",
           opacity: 0,
-          boxShadow: "0 0 0 rgba(0,0,0,0)",
+          boxShadow: "0 0 0 rgb(var(--c-shadow)/calc(0*var(--shadow)))",
         };
       case "flipping_in":
         return {
@@ -314,7 +636,7 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
           borderRadius: "16px",
           transition: "all 800ms cubic-bezier(0.25, 1, 0.5, 1), opacity 0ms",
           opacity: 1,
-          boxShadow: "0 60px 120px -20px rgba(0,0,0,0.9), 0 20px 40px rgba(0,0,0,0.6)",
+          boxShadow: "0 60px 120px -20px rgb(var(--c-shadow)/calc(0.9*var(--shadow))), 0 20px 40px rgb(var(--c-shadow)/calc(0.6*var(--shadow)))",
         };
       case "expanding":
       case "open":
@@ -337,7 +659,7 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
           borderRadius: "16px",
           transition: "all 400ms cubic-bezier(0.76, 0, 0.24, 1), opacity 0ms",
           opacity: 1,
-          boxShadow: "0 60px 120px -20px rgba(0,0,0,0.9), 0 20px 40px rgba(0,0,0,0.6)",
+          boxShadow: "0 60px 120px -20px rgb(var(--c-shadow)/calc(0.9*var(--shadow))), 0 20px 40px rgb(var(--c-shadow)/calc(0.6*var(--shadow)))",
         };
       case "flipping_out":
         return {
@@ -348,7 +670,7 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
           borderRadius: "16px",
           transition: "all 800ms cubic-bezier(0.5, 0, 0.2, 1), opacity 0ms",
           opacity: 1,
-          boxShadow: "0 0 0 rgba(0,0,0,0)",
+          boxShadow: "0 0 0 rgb(var(--c-shadow)/calc(0*var(--shadow)))",
         };
     }
   };
@@ -372,20 +694,20 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
 
       {/* BACK FACE (Experiences Panel) */}
       <div 
-        className="absolute inset-0 backface-hidden bg-[#262C31] overflow-hidden"
+        className="absolute inset-0 backface-hidden bg-[rgb(var(--c-bg))] overflow-hidden"
         style={{ 
           transform: 'rotateY(180deg)',
           borderRadius: animState === 'expanding' || animState === 'open' ? '0' : '16px',
           transition: "border-radius 400ms cubic-bezier(0.76, 0, 0.24, 1)"
         }}
-        onWheel={handlePanelWheel}
+        ref={panelRef}
       >
         {/* Static Shadow Overlay */}
         <div 
           className="absolute inset-0 pointer-events-none rounded-[inherit]"
           style={{ 
             zIndex: 0,
-            background: 'radial-gradient(ellipse at 50% 150%, rgba(15, 20, 25, 0.45) 0%, transparent 60%)',
+            background: 'radial-gradient(ellipse at 50% 150%, rgb(var(--c-deep)/calc(0.45*var(--shade))) 0%, transparent 60%)',
             display: animState === 'hidden' ? 'none' : undefined,
           }}
         />
@@ -404,7 +726,7 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
             <div
               className={cn(
                 "absolute top-0 left-0 right-0 h-[60px] z-10 flex items-center px-4 sm:px-6",
-                "bg-[rgba(38,44,49,0.5)] backdrop-blur-[12px] border-b border-[rgba(54,62,69,0.8)]",
+                "bg-[rgb(var(--c-bg)/0.5)] backdrop-blur-[12px] border-b border-[rgb(var(--c-border)/0.8)]",
                 "transition-opacity duration-300"
               )}
               style={{ 
@@ -416,7 +738,7 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
             >
           {/* The title gives way to the filters on narrow screens */}
           <div className="flex-1 min-w-0">
-            <h2 className="hidden min-[440px]:block truncate font-sans text-[18px] font-bold text-[#D2DCE5]">Experiences</h2>
+            <h2 className="hidden min-[440px]:block truncate font-sans text-[18px] font-bold text-[rgb(var(--c-text))]">Experiences</h2>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
@@ -433,7 +755,7 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
               onChange={setTypeFilter}
             />
 
-            <div className="hidden sm:block w-[1px] h-6 bg-[rgba(54,62,69,0.8)] mx-2" />
+            <div className="hidden sm:block w-[1px] h-6 bg-[rgb(var(--c-border)/0.8)] mx-2" />
 
             <button
               onClick={onClose}
@@ -454,7 +776,10 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
             display: showContents ? undefined : 'none',
           }}
         >
-          <span className="font-sans text-[10px] tracking-[0.14em] uppercase text-[rgba(210,220,229,0.2)]">
+          <span
+            ref={hintRef}
+            className="inline-block origin-top font-sans text-[10px] tracking-[0.14em] uppercase text-[rgb(var(--c-text)/0.2)]"
+          >
             Scroll up to return
           </span>
         </div>
@@ -484,9 +809,9 @@ export function ExperiencesPanel({ onClose, cardRect, cardZoom = 1, animState, o
             <div
               ref={listRef}
               className="flex-1 w-full max-w-[650px] overflow-y-auto minimal-scrollbar pr-4 md:pr-8 pb-24"
-              onWheel={handleListWheel}
+              style={{ overscrollBehaviorY: 'contain' }}
             >
-              <div className="w-full">
+              <div ref={listContentRef} className="w-full">
                 {filteredExperiences.map((exp, index) => {
                   const isSelected = selectedExperience?.id === exp.id;
                   const isPrevious = previousExperience?.id === exp.id;

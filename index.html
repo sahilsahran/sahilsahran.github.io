@@ -13,6 +13,14 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   </head>
   <body>
+    <script>
+      // Apply the color theme before the first paint; ?theme= previews another (see src/lib/theme.ts)
+      (function () {
+        var themes = ['slate', 'scarlet', 'scarlet-light'];
+        var t = new URLSearchParams(location.search).get('theme');
+        document.documentElement.dataset.theme = themes.indexOf(t) >= 0 ? t : 'scarlet-light';
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

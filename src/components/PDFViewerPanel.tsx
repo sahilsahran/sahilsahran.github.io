@@ -172,8 +172,8 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose, onNa
 
   // Dynamic shadow that grows when moving to the center — matches FlipButton multi-layer style
   const faceShadow = ['hidden', 'flipping_out', 'collapsing'].includes(animState)
-    ? '0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05)'
-    : '0 30px 60px -10px rgba(0,0,0,0.9), 0 12px 24px -6px rgba(0,0,0,0.7), 0 0 0 2px rgba(196,238,240,0.1)';
+    ? '0 20px 40px -10px rgb(var(--c-shadow)/calc(0.7*var(--shadow))), 0 8px 16px -4px rgb(var(--c-shadow)/calc(0.5*var(--shadow))), 0 0 0 1px rgb(var(--c-accent)/0.05)'
+    : '0 30px 60px -10px rgb(var(--c-shadow)/calc(0.9*var(--shadow))), 0 12px 24px -6px rgb(var(--c-shadow)/calc(0.7*var(--shadow))), 0 0 0 2px rgb(var(--c-accent)/0.1)';
 
   return (
     <div style={getWrapperStyle()} className="pointer-events-none">
@@ -185,8 +185,8 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose, onNa
         <div 
           className={`absolute inset-0 flex items-center justify-center rounded-[10px] ${
             viewerData.type === 'custom'
-              ? 'bg-[#262C31] border border-[rgba(54,62,69,0.8)]'
-              : 'bg-[#A4C6D3] text-[#262C31]'
+              ? 'bg-[rgb(var(--c-bg))] border border-[rgb(var(--c-border)/0.8)]'
+              : 'bg-[rgb(var(--c-accent-2))] text-[rgb(var(--c-on-accent))]'
           }`}
           style={{ 
             backfaceVisibility: 'hidden', 
@@ -203,8 +203,8 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose, onNa
               <video src={viewerData.fileUrl} muted playsInline preload="metadata" className="w-full h-full object-contain p-4" />
             ) : (
               <div className="flex flex-col items-center justify-center p-4">
-                <FileText size={32} className="text-[rgba(210,220,229,0.2)] mb-2" />
-                <span className="font-mono text-[10px] text-[rgba(210,220,229,0.4)] text-center line-clamp-2">
+                <FileText size={32} className="text-[rgb(var(--c-text)/0.2)] mb-2" />
+                <span className="font-mono text-[10px] text-[rgb(var(--c-text)/0.4)] text-center line-clamp-2">
                   {viewerData.title}
                 </span>
               </div>
@@ -218,7 +218,7 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose, onNa
 
         {/* BACK FACE (Blank / Modal Container) - Main Background Color */}
         <div 
-          className="absolute inset-0 bg-[#2E353B] rounded-[10px] overflow-hidden flex flex-col border border-[rgba(54,62,69,0.8)]"
+          className="absolute inset-0 bg-[rgb(var(--c-surface))] rounded-[10px] overflow-hidden flex flex-col border border-[rgb(var(--c-border)/0.8)]"
           style={{ 
             backfaceVisibility: 'hidden', 
             WebkitBackfaceVisibility: 'hidden',
@@ -229,13 +229,13 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose, onNa
         >
           {/* Top Bar - only visible when expanding/open */}
           <div 
-            className="flex items-center justify-between px-4 py-3 shrink-0 transition-opacity duration-300 border-b border-[rgba(54,62,69,0.4)]"
+            className="flex items-center justify-between px-4 py-3 shrink-0 transition-opacity duration-300 border-b border-[rgb(var(--c-border)/0.4)]"
             style={{ opacity: isModalOpen ? 1 : 0 }}
           >
-            <span className="font-sans font-bold text-[#D2DCE5] text-[15px] uppercase tracking-wider truncate max-w-[70%]">
+            <span className="font-sans font-bold text-[rgb(var(--c-text))] text-[15px] uppercase tracking-wider truncate max-w-[70%]">
               {viewerData.title}
               {canNavigate && (
-                <span className="ml-3 font-mono text-[11px] font-normal tracking-normal text-[rgba(210,220,229,0.4)]">
+                <span className="ml-3 font-mono text-[11px] font-normal tracking-normal text-[rgb(var(--c-text)/0.4)]">
                   {(viewerData.index ?? 0) + 1} / {galleryCount}
                 </span>
               )}
@@ -244,14 +244,14 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose, onNa
               <a 
                 href={viewerData.fileUrl}
                 download
-                className="btn-icon w-8 h-8 text-[#D2DCE5] hover:text-[#C4EEF0] hover:bg-[rgba(196,238,240,0.06)]"
+                className="btn-icon w-8 h-8 text-[rgb(var(--c-text))] hover:text-[rgb(var(--c-accent))] hover:bg-[rgb(var(--c-accent)/0.06)]"
                 aria-label="Download PDF"
               >
                 <Download size={18} />
               </a>
               <button 
                 onClick={onClose}
-                className="btn-icon w-8 h-8 text-[#D2DCE5] hover:text-[#C4EEF0] hover:bg-[rgba(196,238,240,0.06)]"
+                className="btn-icon w-8 h-8 text-[rgb(var(--c-text))] hover:text-[rgb(var(--c-accent))] hover:bg-[rgb(var(--c-accent)/0.06)]"
                 aria-label="Close PDF"
               >
                 <X size={20} />
@@ -261,21 +261,21 @@ export function PDFViewerPanel({ animState, startRect, viewerData, onClose, onNa
 
           {/* File Viewer */}
           <div 
-            className="relative flex-1 w-full h-full min-h-0 overflow-hidden bg-[#2E353B] transition-opacity duration-500 delay-100 flex items-center justify-center p-4"
+            className="relative flex-1 w-full h-full min-h-0 overflow-hidden bg-[rgb(var(--c-surface))] transition-opacity duration-500 delay-100 flex items-center justify-center p-4"
             style={{ opacity: isModalOpen ? 1 : 0 }}
           >
             {isModalOpen && canNavigate && (
               <>
                 <button
                   onClick={() => onNavigate!(-1)}
-                  className="btn-icon absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[rgba(38,44,49,0.55)] backdrop-blur-[6px] opacity-50 hover:opacity-100"
+                  className="btn-icon absolute left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[rgb(var(--c-bg)/0.55)] backdrop-blur-[6px] opacity-50 hover:opacity-100"
                   aria-label="Previous attachment"
                 >
                   <ChevronLeft size={20} />
                 </button>
                 <button
                   onClick={() => onNavigate!(1)}
-                  className="btn-icon absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[rgba(38,44,49,0.55)] backdrop-blur-[6px] opacity-50 hover:opacity-100"
+                  className="btn-icon absolute right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-[rgb(var(--c-bg)/0.55)] backdrop-blur-[6px] opacity-50 hover:opacity-100"
                   aria-label="Next attachment"
                 >
                   <ChevronRight size={20} />

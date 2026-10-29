@@ -109,9 +109,9 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
         className="w-full h-full relative preserve-3d rounded-[16px]"
         style={{
           boxShadow: `
-            0 30px 60px -15px rgba(0, 0, 0, 0.7),
-            0 10px 20px -8px rgba(0, 0, 0, 0.5),
-            0 0 0 1px rgba(196, 238, 240, 0.06)
+            0 30px 60px -15px rgb(var(--c-shadow)/calc(0.7*var(--shadow))),
+            0 10px 20px -8px rgb(var(--c-shadow)/calc(0.5*var(--shadow))),
+            0 0 0 1px rgb(var(--c-accent)/0.06)
           `
         }}
       >
@@ -122,8 +122,8 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
             className="absolute inset-0 rounded-[16px]"
             style={{
               transform: `translateZ(${offset}px)`,
-              background: "#4B6376",
-              border: "1px solid rgba(75, 99, 118, 0.8)",
+              background: "rgb(var(--c-depth))",
+              border: "1px solid rgb(var(--c-depth)/0.8)",
             }}
           />
         ))}
@@ -131,7 +131,7 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
         {/* Front Face */}
         <div
           ref={frontFaceRef}
-          className="absolute inset-0 rounded-[16px] overflow-hidden bg-[linear-gradient(160deg,#2E353B_0%,#262C31_100%)] border border-[rgba(196,238,240,0.1)] preserve-3d"
+          className="absolute inset-0 rounded-[16px] overflow-hidden bg-[linear-gradient(160deg,rgb(var(--c-surface))_0%,rgb(var(--c-bg))_100%)] border border-[rgb(var(--c-accent)/0.1)] preserve-3d"
           style={{ transform: "translateZ(2px)" }}
         >
           {/* Dynamic Sheen */}
@@ -140,7 +140,7 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
             style={{
               background: `radial-gradient(
                 400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-                rgba(196, 238, 240, 0.07) 0%,
+                rgb(var(--c-accent)/0.07) 0%,
                 transparent 60%
               )`
             }}
@@ -150,19 +150,19 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
           <div
             className="absolute inset-0 pointer-events-none z-[1] rounded-[16px]"
             style={{
-              background: 'radial-gradient(ellipse at 50% 150%, rgba(15, 20, 25, 0.8) 0%, rgba(15, 20, 25, 0.3) 40%, transparent 70%)',
+              background: 'radial-gradient(ellipse at 50% 150%, rgb(var(--c-deep)/calc(0.8*var(--shade))) 0%, rgb(var(--c-deep)/calc(0.3*var(--shade))) 40%, transparent 70%)',
             }}
           />
 
           {/* Name Row */}
           <div className="absolute top-0 left-0 right-0 p-5 flex justify-between items-center z-20">
             <div
-              className="text-[12px] tracking-[0.2em] font-semibold text-[rgba(196,238,240,0.7)] uppercase font-sans"
+              className="text-[12px] tracking-[0.2em] font-semibold text-[rgb(var(--c-accent)/0.7)] uppercase font-sans"
             >
               Sahil Sahran
             </div>
-            <div className="w-8 h-8 rounded-full border border-[rgba(196,238,240,0.2)] flex items-center justify-center font-sans">
-              <span className="text-[8px] text-[rgba(196,238,240,0.7)] font-semibold tracking-wider">SS</span>
+            <div className="w-8 h-8 rounded-full border border-[rgb(var(--c-accent)/0.2)] flex items-center justify-center font-sans">
+              <span className="text-[8px] text-[rgb(var(--c-accent)/0.7)] font-semibold tracking-wider">SS</span>
             </div>
           </div>
 
@@ -177,19 +177,19 @@ export function IDCard({ photoSrc = photoPng, interactive = true }: IDCardProps)
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <span className="text-[80px] font-[800] text-[rgba(196,238,240,0.15)] font-sans">SS</span>
+                <span className="text-[80px] font-[800] text-[rgb(var(--c-accent)/0.15)] font-sans">SS</span>
               </div>
             )}
             {/* Color Tint Overlay */}
-            <div className="absolute inset-0 mix-blend-multiply bg-[rgba(75,99,118,0.5)] pointer-events-none" />
-            <div className="absolute inset-0 bg-[#262C31]/20 pointer-events-none" />
+            <div className="absolute inset-0 mix-blend-multiply bg-[rgb(var(--c-tint)/0.5)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[rgb(var(--c-bg))]/20 pointer-events-none" />
             {/* Bottom Gradient Fade */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_60%,#262C31_100%)] pointer-events-none" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_60%,rgb(var(--c-bg))_100%)] pointer-events-none" />
           </div>
 
           {/* Bio Text Area */}
           <div className="absolute bottom-0 left-0 right-0 h-[24%] px-5 pb-4 flex flex-col justify-end z-20">
-            <p className="text-[13px] leading-[1.6] text-[rgba(210,220,229,0.75)] font-sans">
+            <p className="text-[13px] leading-[1.6] text-[rgb(var(--c-text)/0.75)] font-sans">
               Second-year Electrical Engineering student interested in embedded systems, circuit design and digital hardware.
             </p>
           </div>

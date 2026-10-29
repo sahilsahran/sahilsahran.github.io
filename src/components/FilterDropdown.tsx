@@ -30,10 +30,10 @@ export function FilterDropdown({ label, options, value, onChange }: FilterDropdo
     <div className="relative z-[100]" ref={containerRef}>
       <FlipButton
         onClick={() => setIsOpen(!isOpen)}
-        faceShadow='0 8px 16px -6px rgba(0,0,0,0.55), 0 3px 6px -2px rgba(0,0,0,0.35), 0 0 0 1px rgba(196,238,240,0.05)'
+        faceShadow='0 8px 16px -6px rgb(var(--c-shadow)/calc(0.55*var(--shadow))), 0 3px 6px -2px rgb(var(--c-shadow)/calc(0.35*var(--shadow))), 0 0 0 1px rgb(var(--c-accent)/0.05)'
         wrapperClassName="w-full"
         className={cn("btn-flip-secondary")}
-        style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
+        style={{ padding: '6px 14px', fontSize: '13px', borderRadius: '8px', boxShadow: '0 1px 3px rgb(var(--c-shadow)/calc(0.1*var(--shadow)))' }}
       >
         <div className="flex items-center gap-2">
           <span className="opacity-60">{label}:</span>
@@ -41,7 +41,7 @@ export function FilterDropdown({ label, options, value, onChange }: FilterDropdo
           <ChevronDown
             size={14}
             className={cn(
-              "text-[rgba(210,220,229,0.4)] transition-transform duration-200",
+              "text-[rgb(var(--c-text)/0.4)] transition-transform duration-200",
               isOpen && "rotate-180"
             )}
           />
@@ -50,9 +50,9 @@ export function FilterDropdown({ label, options, value, onChange }: FilterDropdo
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-2 min-w-[160px] origin-top bg-[#2E353B] border border-[rgba(54,62,69,1)] rounded-[10px] overflow-hidden"
+          className="absolute right-0 top-full mt-2 min-w-[160px] origin-top bg-[rgb(var(--c-surface))] border border-[rgb(var(--c-border)/1)] rounded-[10px] overflow-hidden"
           style={{
-            boxShadow: "0 2px 6px rgba(0,0,0,0.18)",
+            boxShadow: "0 2px 6px rgb(var(--c-shadow)/calc(0.18*var(--shadow)))",
             animation: "dropdown-enter 150ms ease-out forwards",
           }}
         >
@@ -73,8 +73,8 @@ export function FilterDropdown({ label, options, value, onChange }: FilterDropdo
                 className={cn(
                   "w-full text-left px-4 py-2 font-sans text-[13px] transition-colors",
                   value === opt
-                    ? "text-[#C4EEF0] bg-[rgba(196,238,240,0.06)] font-medium"
-                    : "text-[#D2DCE5] hover:bg-[rgba(196,238,240,0.06)]"
+                    ? "text-[rgb(var(--c-accent))] bg-[rgb(var(--c-accent)/0.06)] font-medium"
+                    : "text-[rgb(var(--c-text))] hover:bg-[rgb(var(--c-accent)/0.06)]"
                 )}
               >
                 {opt}

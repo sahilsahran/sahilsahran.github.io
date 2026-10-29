@@ -1,25 +1,97 @@
 @import "tailwindcss";
 
-@theme {
-  --color-background: #262c31;
-  --color-foreground: #d2dce5;
-  --color-card: #2e353b;
-  --color-card-foreground: #d2dce5;
-  --color-popover: #2e353b;
-  --color-popover-foreground: #d2dce5;
-  --color-primary: #d2dce5;
-  --color-primary-foreground: #262c31;
-  --color-secondary: #a4c6d3;
-  --color-secondary-foreground: #262c31;
-  --color-muted: #363e45;
-  --color-muted-foreground: #d2dce5;
-  --color-accent: #c4eef0;
-  --color-accent-foreground: #262c31;
+/* ==========================================================
+   COLOR THEMES
+   Every color on the site comes from these tokens, written as
+   space-separated RGB so they work with alpha: rgb(var(--c-text) / 0.5).
+   The theme is picked with <html data-theme="...">; "slate" is the default.
+   ========================================================== */
+
+/* Slate: the original palette (dark blue-grey, pale cyan accent) */
+:root {
+  --c-bg: 38 44 49;            /* #262C31 page background */
+  --c-surface: 46 53 59;       /* #2E353B cards, menus, panels */
+  --c-border: 54 62 69;        /* #363E45 borders, dividers */
+  --c-text: 210 220 229;       /* #D2DCE5 main text */
+  --c-accent: 196 238 240;     /* #C4EEF0 highlights, selected states, scrollbars */
+  --c-accent-2: 164 198 211;   /* #A4C6D3 subtitle, name edges, active tabs */
+  --c-on-accent: 38 44 49;     /* text drawn on accent fills */
+  --c-depth: 75 99 118;        /* #4B6376 3D name layers, card edge */
+  --c-deep: 15 20 25;          /* deep shadow tint */
+  --c-grid: 26 34 39;          /* #1A2227 background grid lines */
+  --c-tint: 75 99 118;         /* photo tint on the ID card */
+  --c-btn: 210 220 229;        /* Resume / Transcript buttons */
+  --c-btn-text: 38 44 49;
+  --c-btn-back: 164 198 211;   /* the flipped side of a button */
+  --c-btn-back-text: 38 44 49;
+  --c-shadow: 0 0 0;           /* drop shadows */
+  --shadow: 1;                 /* drop shadow strength */
+  --shade: 1;                  /* strength of the deep shading on cards and panels */
+  color-scheme: dark;
+}
+
+/* Scarlet: warm charcoal with a deep red accent */
+:root[data-theme="scarlet"] {
+  --c-bg: 59 56 50;            /* #3B3832 */
+  --c-surface: 68 64 57;       /* #444039 */
+  --c-border: 90 83 74;        /* #5A534A */
+  --c-text: 237 228 216;       /* #EDE4D8 */
+  --c-accent: 226 70 82;       /* #E24652 scarlet, lifted so it reads on the dark background */
+  --c-accent-2: 214 153 140;   /* #D6998C muted rose */
+  --c-on-accent: 245 237 230;  /* #F5EDE6 */
+  --c-depth: 140 22 36;        /* #8C1624 deep red */
+  --c-deep: 24 20 17;
+  --c-grid: 52 49 43;          /* #34312B */
+  --c-tint: 120 92 66;         /* warm sepia */
+  --c-btn: 189 0 23;           /* #BD0017 */
+  --c-btn-text: 245 237 230;   /* #F5EDE6 */
+  --c-btn-back: 237 228 216;   /* cream, with red text */
+  --c-btn-back-text: 163 0 20; /* #A30014 */
+}
+
+/* Scarlet Light: warm cream with the same red accent */
+:root[data-theme="scarlet-light"] {
+  --c-bg: 241 232 216;         /* #F1E8D8 warm cream */
+  --c-surface: 246 239 227;    /* #F6EFE3 */
+  --c-border: 214 203 184;     /* #D6CBB8 */
+  --c-text: 45 41 35;          /* #2D2923 */
+  --c-accent: 180 35 50;       /* #B42332 */
+  --c-accent-2: 148 29 41;     /* #941D29 */
+  --c-on-accent: 245 237 230;  /* #F5EDE6 */
+  --c-depth: 180 35 50;        /* red 3D name layers */
+  --c-deep: 74 56 24;          /* warm brown shadow tint */
+  --c-grid: 231 221 203;       /* #E7DDCB */
+  --c-tint: 214 190 160;       /* light sepia */
+  --c-btn: 180 35 50;          /* #B42332 */
+  --c-btn-text: 245 237 230;
+  --c-btn-back: 233 223 205;   /* #E9DFCD, with red text */
+  --c-btn-back-text: 148 29 41;
+  --c-shadow: 74 56 24;        /* soft warm shadows instead of black */
+  --shadow: 0.35;
+  --shade: 0.12;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-background: rgb(var(--c-bg));
+  --color-foreground: rgb(var(--c-text));
+  --color-card: rgb(var(--c-surface));
+  --color-card-foreground: rgb(var(--c-text));
+  --color-popover: rgb(var(--c-surface));
+  --color-popover-foreground: rgb(var(--c-text));
+  --color-primary: rgb(var(--c-text));
+  --color-primary-foreground: rgb(var(--c-btn-text));
+  --color-secondary: rgb(var(--c-accent-2));
+  --color-secondary-foreground: rgb(var(--c-on-accent));
+  --color-muted: rgb(var(--c-border));
+  --color-muted-foreground: rgb(var(--c-text));
+  --color-accent: rgb(var(--c-accent));
+  --color-accent-foreground: rgb(var(--c-on-accent));
   --color-destructive: #7f1d1d;
-  --color-destructive-foreground: #d2dce5;
-  --color-border: #363e45;
-  --color-input: #363e45;
-  --color-ring: #c4eef0;
+  --color-destructive-foreground: rgb(var(--c-text));
+  --color-border: rgb(var(--c-border));
+  --color-input: rgb(var(--c-border));
+  --color-ring: rgb(var(--c-accent));
   --font-sans: 'Clash Grotesk', system-ui, -apple-system, sans-serif;
   --radius-sm: calc(0.5rem - 4px);
   --radius-md: calc(0.5rem - 2px);
@@ -107,20 +179,20 @@
   background: transparent;
 }
 .minimal-scrollbar::-webkit-scrollbar-thumb {
-  background: #C4EEF0;
+  background: rgb(var(--c-accent));
   border-radius: 4px;
 }
 .minimal-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #C4EEF0 transparent;
+  scrollbar-color: rgb(var(--c-accent)) transparent;
 }
 
 /* Flip Button Utilities */
 .btn-flip-primary {
-  background: #D2DCE5;
-  color: #262C31;
+  background: rgb(var(--c-btn));
+  color: rgb(var(--c-btn-text));
   border-radius: 10px;
-  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05);
+  box-shadow: 0 12px 24px -8px rgb(var(--c-shadow)/calc(0.6*var(--shadow))), 0 4px 8px -2px rgb(var(--c-shadow)/calc(0.4*var(--shadow))), 0 0 0 1px rgb(var(--c-accent)/0.05);
   padding: 12px 32px;
   font-family: var(--font-sans);
   font-size: 14px;
@@ -129,11 +201,11 @@
 }
 
 .btn-flip-secondary {
-  background: #2E353B;
-  color: #D2DCE5;
+  background: rgb(var(--c-surface));
+  color: rgb(var(--c-text));
   border-radius: 10px;
-  border: 1px solid rgba(196, 238, 240, 0.12);
-  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.7), 0 8px 16px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(196,238,240,0.05);
+  border: 1px solid rgb(var(--c-accent)/0.12);
+  box-shadow: 0 12px 24px -8px rgb(var(--c-shadow)/calc(0.6*var(--shadow))), 0 4px 8px -2px rgb(var(--c-shadow)/calc(0.4*var(--shadow))), 0 0 0 1px rgb(var(--c-accent)/0.05);
   padding: 12px 32px;
   font-family: var(--font-sans);
   font-size: 14px;
@@ -143,7 +215,7 @@
 
 .btn-icon {
   background: transparent;
-  color: rgba(210,220,229,0.6);
+  color: rgb(var(--c-text)/0.6);
   border-radius: 8px;
   padding: 0;
   transition: all 200ms ease;
@@ -153,19 +225,19 @@
 }
 
 .btn-icon:hover, .group:hover .btn-icon {
-  background: rgba(196,238,240,0.06);
-  color: #C4EEF0;
+  background: rgb(var(--c-accent)/0.06);
+  color: rgb(var(--c-accent));
 }
 
 .btn-flip-back {
-  background: #A4C6D3 !important;
-  color: #262C31 !important;
+  background: rgb(var(--c-btn-back)) !important;
+  color: rgb(var(--c-btn-back-text)) !important;
   border-color: transparent !important;
 }
 
 .btn-flip-icon-back {
   background: transparent !important;
-  color: #A4C6D3 !important;
+  color: rgb(var(--c-accent-2)) !important;
 }
 
 /* Pause all background animations when PDF viewer is active */

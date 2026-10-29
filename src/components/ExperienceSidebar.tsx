@@ -121,7 +121,7 @@ export function ExperienceSidebar({
           borderRadius: "12px",
           transition: "opacity 100ms ease-out",
           opacity: 0,
-          boxShadow: "0 0 0 rgba(0,0,0,0)",
+          boxShadow: "0 0 0 rgb(var(--c-shadow)/calc(0*var(--shadow)))",
         };
       case "flight_in":
         return {
@@ -132,7 +132,7 @@ export function ExperienceSidebar({
           borderRadius: "12px",
           transition: "all 600ms cubic-bezier(0.25, 1, 0.5, 1), opacity 0ms",
           opacity: 1,
-          boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
+          boxShadow: "-8px 0 32px rgb(var(--c-shadow)/calc(0.5*var(--shadow)))",
         };
       case "pausing":
         return {
@@ -143,7 +143,7 @@ export function ExperienceSidebar({
           borderRadius: "12px",
           transition: "none",
           opacity: 1,
-          boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
+          boxShadow: "-8px 0 32px rgb(var(--c-shadow)/calc(0.5*var(--shadow)))",
         };
       case "expanding":
         return {
@@ -154,7 +154,7 @@ export function ExperienceSidebar({
           borderRadius: "12px",
           transition: "all 400ms cubic-bezier(0.76, 0, 0.24, 1), opacity 0ms",
           opacity: 1,
-          boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
+          boxShadow: "-8px 0 32px rgb(var(--c-shadow)/calc(0.5*var(--shadow)))",
         };
       case "open":
       case "fading_out":
@@ -166,7 +166,7 @@ export function ExperienceSidebar({
           borderRadius: "12px",
           transition: "none",
           opacity: 1,
-          boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
+          boxShadow: "-8px 0 32px rgb(var(--c-shadow)/calc(0.5*var(--shadow)))",
         };
       case "collapsing":
         return {
@@ -177,7 +177,7 @@ export function ExperienceSidebar({
           borderRadius: "12px",
           transition: "all 400ms cubic-bezier(0.76, 0, 0.24, 1), opacity 0ms",
           opacity: 1,
-          boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
+          boxShadow: "-8px 0 32px rgb(var(--c-shadow)/calc(0.5*var(--shadow)))",
         };
       case "flight_out":
         return {
@@ -188,7 +188,7 @@ export function ExperienceSidebar({
           borderRadius: "12px",
           transition: "all 600ms cubic-bezier(0.25, 1, 0.5, 1), opacity 0ms",
           opacity: 1,
-          boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
+          boxShadow: "-8px 0 32px rgb(var(--c-shadow)/calc(0.5*var(--shadow)))",
         };
     }
   };
@@ -197,7 +197,7 @@ export function ExperienceSidebar({
     <div style={getContainerStyles()}>
       {/* Front Face */}
       <div 
-        className="absolute inset-0 bg-[#2E353B] rounded-[12px]"
+        className="absolute inset-0 bg-[rgb(var(--c-surface))] rounded-[12px]"
         style={{ 
           transform: 'rotateX(0deg) translateZ(1px)',
         }}
@@ -206,7 +206,7 @@ export function ExperienceSidebar({
         
         {/* Darkening Overlay for Parallax Match During Swaps */}
         <div 
-          className="absolute inset-0 bg-[#262c31] rounded-[12px] pointer-events-none transition-opacity duration-[600ms] ease-[cubic-bezier(0.25,1,0.5,1)]"
+          className="absolute inset-0 bg-[rgb(var(--c-bg))] rounded-[12px] pointer-events-none transition-opacity duration-[600ms] ease-[cubic-bezier(0.25,1,0.5,1)]"
           style={{ opacity: (animState === 'flight_out' && isListScaledDown) ? 0.5 : 0 }}
         />
       </div>
@@ -219,23 +219,23 @@ export function ExperienceSidebar({
         }}
       >
         <div 
-          className="absolute inset-0 bg-[#2E353B] flex flex-col border-l border-[rgba(54,62,69,0.8)] overflow-hidden rounded-[12px]"
+          className="absolute inset-0 bg-[rgb(var(--c-surface))] flex flex-col border-l border-[rgb(var(--c-border)/0.8)] overflow-hidden rounded-[12px]"
         >
         <div 
           className="flex flex-col h-full w-full transition-opacity duration-200"
           style={{ opacity: animState === "open" ? 1 : 0 }}
         >
           {/* Top Bar */}
-      <div className="h-[52px] shrink-0 border-b border-[rgba(54,62,69,0.8)] flex items-center justify-between px-4">
+      <div className="h-[52px] shrink-0 border-b border-[rgb(var(--c-border)/0.8)] flex items-center justify-between px-4">
         <button
           onClick={onClose}
-          className="btn-icon w-8 h-8 hover:text-[#C4EEF0]"
+          className="btn-icon w-8 h-8 hover:text-[rgb(var(--c-accent))]"
           aria-label="Close details"
         >
           <X size={16} />
         </button>
 
-        <h3 className="font-sans text-[14px] font-semibold text-[#D2DCE5] truncate px-4 flex-1 text-center">
+        <h3 className="font-sans text-[14px] font-semibold text-[rgb(var(--c-text))] truncate px-4 flex-1 text-center">
           {experience.title}
         </h3>
 
@@ -245,7 +245,7 @@ export function ExperienceSidebar({
 
       {/* Experience Navigation */}
       {(onPrev || onNext) && (
-        <div className="h-[40px] shrink-0 border-b border-[rgba(54,62,69,0.4)] flex items-center justify-between px-3">
+        <div className="h-[40px] shrink-0 border-b border-[rgb(var(--c-border)/0.4)] flex items-center justify-between px-3">
           <button
             onClick={onPrev}
             disabled={!hasPrev}
@@ -257,7 +257,7 @@ export function ExperienceSidebar({
             Previous
           </button>
           {position !== undefined && total !== undefined && (
-            <span className="font-mono text-[11px] text-[rgba(210,220,229,0.4)]">
+            <span className="font-mono text-[11px] text-[rgb(var(--c-text)/0.4)]">
               {position} / {total}
             </span>
           )}
@@ -278,21 +278,21 @@ export function ExperienceSidebar({
       <div className="flex-1 overflow-y-auto p-[24px] space-y-8">
         <div className="space-y-4">
           {experience.details.split("\n\n").map((paragraph, i) => (
-            <p key={i} className="font-sans text-[14px] leading-[1.7] text-[rgba(210,220,229,0.8)]">
+            <p key={i} className="font-sans text-[14px] leading-[1.7] text-[rgb(var(--c-text)/0.8)]">
               {paragraph}
             </p>
           ))}
         </div>
 
         <div>
-          <h4 className="font-sans text-[11px] uppercase tracking-wider text-[rgba(210,220,229,0.4)] mb-3">
+          <h4 className="font-sans text-[11px] uppercase tracking-wider text-[rgb(var(--c-text)/0.4)] mb-3">
             Skills used
           </h4>
           <div className="flex flex-wrap gap-2">
             {experience.skills.map((skill) => (
               <span
                 key={skill}
-                className="px-[8px] py-[4px] rounded-full bg-[rgba(54,62,69,0.8)] text-[rgba(210,220,229,0.6)] font-sans text-[10px] tracking-wider"
+                className="px-[8px] py-[4px] rounded-full bg-[rgb(var(--c-border)/0.8)] text-[rgb(var(--c-text)/0.6)] font-sans text-[10px] tracking-wider"
               >
                 {skill}
               </span>
@@ -302,14 +302,14 @@ export function ExperienceSidebar({
 
         {experience.files.length > 0 && activeFile && (
           <div>
-            <h4 className="font-sans text-[11px] uppercase tracking-wider text-[rgba(210,220,229,0.4)] mb-2">
+            <h4 className="font-sans text-[11px] uppercase tracking-wider text-[rgb(var(--c-text)/0.4)] mb-2">
               {experience.files.length > 1 ? "Attachments" : "Attachment"}
             </h4>
 
             {/* File Switcher (Tabs) */}
             {experience.files.length > 1 && (
               <div
-                className="flex mb-3 border-b border-[rgba(54,62,69,0.6)] overflow-x-auto overflow-y-hidden"
+                className="flex mb-3 border-b border-[rgb(var(--c-border)/0.6)] overflow-x-auto overflow-y-hidden"
                 style={{ scrollbarWidth: "none" }}
               >
                 {experience.files.map((file) => (
@@ -319,8 +319,8 @@ export function ExperienceSidebar({
                     className={cn(
                       "px-[12px] py-[6px] font-sans text-[12px] whitespace-nowrap transition-colors",
                       activeFile?.path === file.path
-                        ? "text-[#C4EEF0] border-b-2 border-[#C4EEF0] font-medium"
-                        : "text-[rgba(210,220,229,0.4)] hover:text-[rgba(210,220,229,0.8)] border-b-2 border-transparent"
+                        ? "text-[rgb(var(--c-accent))] border-b-2 border-[rgb(var(--c-accent))] font-medium"
+                        : "text-[rgb(var(--c-text)/0.4)] hover:text-[rgb(var(--c-text)/0.8)] border-b-2 border-transparent"
                     )}
                   >
                     {file.name}
@@ -343,7 +343,7 @@ export function ExperienceSidebar({
 
             <div ref={previewBoxRef}>
             {activeFile.type === "image" ? (
-              <div className="bg-[#262C31] border border-[rgba(54,62,69,0.8)] rounded-[10px] p-[16px] flex items-center justify-center">
+              <div className="bg-[rgb(var(--c-bg))] border border-[rgb(var(--c-border)/0.8)] rounded-[10px] p-[16px] flex items-center justify-center">
                 <img
                   src={activeFile.path}
                   alt={activeFile.name}
@@ -351,7 +351,7 @@ export function ExperienceSidebar({
                 />
               </div>
             ) : activeFile.type === "youtube" ? (
-              <div className="bg-[#262C31] border border-[rgba(54,62,69,0.8)] rounded-[10px] p-[16px]">
+              <div className="bg-[rgb(var(--c-bg))] border border-[rgb(var(--c-border)/0.8)] rounded-[10px] p-[16px]">
                 <iframe
                   key={activeFile.path}
                   src={toYouTubeEmbed(activeFile.path)}
@@ -362,7 +362,7 @@ export function ExperienceSidebar({
                 />
               </div>
             ) : activeFile.type === "video" ? (
-              <div className="bg-[#262C31] border border-[rgba(54,62,69,0.8)] rounded-[10px] p-[16px] flex items-center justify-center">
+              <div className="bg-[rgb(var(--c-bg))] border border-[rgb(var(--c-border)/0.8)] rounded-[10px] p-[16px] flex items-center justify-center">
                 <video
                   key={activeFile.path}
                   src={activeFile.path}
@@ -373,7 +373,7 @@ export function ExperienceSidebar({
                 />
               </div>
             ) : (
-              <div className="bg-[#262C31] border border-[rgba(54,62,69,0.8)] rounded-[10px] p-[8px]">
+              <div className="bg-[rgb(var(--c-bg))] border border-[rgb(var(--c-border)/0.8)] rounded-[10px] p-[8px]">
                 <iframe
                   key={activeFile.path}
                   src={`${activeFile.path}#view=FitH&toolbar=0`}

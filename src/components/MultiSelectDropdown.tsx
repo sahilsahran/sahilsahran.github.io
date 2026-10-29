@@ -44,13 +44,13 @@ export function MultiSelectDropdown({ label, options, values, onChange }: MultiS
     <div className="relative z-[100]" ref={containerRef}>
       <FlipButton
         onClick={() => setIsOpen(!isOpen)}
-        faceShadow="0 8px 16px -6px rgba(0,0,0,0.55), 0 3px 6px -2px rgba(0,0,0,0.35), 0 0 0 1px rgba(196,238,240,0.05)"
+        faceShadow="0 8px 16px -6px rgb(var(--c-shadow)/calc(0.55*var(--shadow))), 0 3px 6px -2px rgb(var(--c-shadow)/calc(0.35*var(--shadow))), 0 0 0 1px rgb(var(--c-accent)/0.05)"
         wrapperClassName="w-full"
         className={cn(
           "btn-flip-secondary",
-          values.length > 0 && values.length < options.length && "ring-1 ring-[rgba(196,238,240,0.25)]"
+          values.length > 0 && values.length < options.length && "ring-1 ring-[rgb(var(--c-accent)/0.25)]"
         )}
-        style={{ padding: "6px 14px", fontSize: "13px", borderRadius: "8px", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}
+        style={{ padding: "6px 14px", fontSize: "13px", borderRadius: "8px", boxShadow: "0 1px 3px rgb(var(--c-shadow)/calc(0.1*var(--shadow)))" }}
       >
         <div className="flex items-center gap-2">
           <span className="opacity-60">{label}:</span>
@@ -58,7 +58,7 @@ export function MultiSelectDropdown({ label, options, values, onChange }: MultiS
           <ChevronDown
             size={14}
             className={cn(
-              "text-[rgba(210,220,229,0.4)] transition-transform duration-200",
+              "text-[rgb(var(--c-text)/0.4)] transition-transform duration-200",
               isOpen && "rotate-180"
             )}
           />
@@ -67,9 +67,9 @@ export function MultiSelectDropdown({ label, options, values, onChange }: MultiS
 
       {isOpen && (
         <div
-          className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 min-w-[180px] max-h-[calc(100dvh-80px)] overflow-y-auto minimal-scrollbar origin-top bg-[#2E353B] border border-[rgba(54,62,69,1)] rounded-[10px]"
+          className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 min-w-[180px] max-h-[calc(100dvh-80px)] overflow-y-auto minimal-scrollbar origin-top bg-[rgb(var(--c-surface))] border border-[rgb(var(--c-border)/1)] rounded-[10px]"
           style={{
-            boxShadow: "0 2px 6px rgba(0,0,0,0.18)",
+            boxShadow: "0 2px 6px rgb(var(--c-shadow)/calc(0.18*var(--shadow)))",
             animation: "dropdown-enter 150ms ease-out forwards",
           }}
         >
@@ -86,23 +86,23 @@ export function MultiSelectDropdown({ label, options, values, onChange }: MultiS
               className={cn(
                 "w-full text-left px-4 py-2 font-sans text-[13px] transition-colors flex items-center gap-2",
                 values.length === 0
-                  ? "text-[#C4EEF0] bg-[rgba(196,238,240,0.06)] font-medium"
-                  : "text-[#D2DCE5] hover:bg-[rgba(196,238,240,0.06)]"
+                  ? "text-[rgb(var(--c-accent))] bg-[rgb(var(--c-accent)/0.06)] font-medium"
+                  : "text-[rgb(var(--c-text))] hover:bg-[rgb(var(--c-accent)/0.06)]"
               )}
             >
               <span
                 className={cn(
                   "w-4 h-4 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors",
                   values.length === 0
-                    ? "bg-[#C4EEF0] border-[#C4EEF0]"
-                    : "border-[rgba(54,62,69,1)] bg-transparent"
+                    ? "bg-[rgb(var(--c-accent))] border-[rgb(var(--c-accent))]"
+                    : "border-[rgb(var(--c-border)/1)] bg-transparent"
                 )}
               >
-                {values.length === 0 && <Check size={11} className="text-[#262C31] stroke-[3]" />}
+                {values.length === 0 && <Check size={11} className="text-[rgb(var(--c-on-accent))] stroke-[3]" />}
               </span>
               All
             </button>
-            <div className="mx-3 my-1 border-t border-[rgba(54,62,69,0.6)]" />
+            <div className="mx-3 my-1 border-t border-[rgb(var(--c-border)/0.6)]" />
             {options.map((opt) => {
               const isSelected = values.includes(opt);
               return (
@@ -112,19 +112,19 @@ export function MultiSelectDropdown({ label, options, values, onChange }: MultiS
                   className={cn(
                     "w-full text-left px-4 py-2 font-sans text-[13px] transition-colors flex items-center gap-2",
                     isSelected
-                      ? "text-[#C4EEF0] bg-[rgba(196,238,240,0.06)] font-medium"
-                      : "text-[#D2DCE5] hover:bg-[rgba(196,238,240,0.06)]"
+                      ? "text-[rgb(var(--c-accent))] bg-[rgb(var(--c-accent)/0.06)] font-medium"
+                      : "text-[rgb(var(--c-text))] hover:bg-[rgb(var(--c-accent)/0.06)]"
                   )}
                 >
                   <span
                     className={cn(
                       "w-4 h-4 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors",
                       isSelected
-                        ? "bg-[#C4EEF0] border-[#C4EEF0]"
-                        : "border-[rgba(54,62,69,1)] bg-transparent"
+                        ? "bg-[rgb(var(--c-accent))] border-[rgb(var(--c-accent))]"
+                        : "border-[rgb(var(--c-border)/1)] bg-transparent"
                     )}
                   >
-                    {isSelected && <Check size={11} className="text-[#262C31] stroke-[3]" />}
+                    {isSelected && <Check size={11} className="text-[rgb(var(--c-on-accent))] stroke-[3]" />}
                   </span>
                   {opt}
                 </button>
