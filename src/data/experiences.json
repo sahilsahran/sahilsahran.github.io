@@ -80,7 +80,7 @@
       "Arduino IDE",
       "Debugging"
     ],
-    "date": "Jun 2025 – Aug 2025",
+    "date": "Jun 2026 – Aug 2026",
     "duration": "3 months",
     "summary": "Cut load-cell noise from ±1 g to ±50 mg, drew a full transmitter schematic, and assembled 100+ boards.",
     "details": "Wired the load cell and wrote the firmware for a stepper-driven dispenser that dispenses by weight, testing NAU7802 and HX711 24-bit ADCs. Measuring noise from thousands of samples, reduced it from ±1 g to ±50 mg by proposing an LDO supply, which halved the noise on its own, then moving the decoupling caps to the ADC pins and enabling the PGA filter cap on the unused channel.\n\nDrew the Altium schematic for an internal RC aircraft transmitter (ESP32, RYLR993 LoRa module, USB-to-SPI joystick bridge), building every symbol and footprint from scratch with JLCPCB part numbers for direct BOM ordering.\n\nAssembled 100+ boards for a medical project using stencil paste reflow and hand soldering, then tested each one and fixed shorted rails, cold joints and reversed diodes.",
