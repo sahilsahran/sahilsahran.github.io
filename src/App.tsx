@@ -736,6 +736,14 @@ function App() {
             >
               Transcript
             </FlipButton>
+            <FlipButton
+              wrapperClassName="w-auto h-auto"
+              className="btn-flip-primary"
+              aria-label="Open LinkedIn profile in a new tab"
+              onClick={() => window.open('https://www.linkedin.com/in/sahil-sahran-70341b286/', '_blank', 'noopener,noreferrer')}
+            >
+              LinkedIn
+            </FlipButton>
           </div>
         </main>
 
